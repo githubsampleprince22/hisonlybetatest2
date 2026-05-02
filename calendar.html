@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Availability — HISONLY</title>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .legend { display:flex; gap:14px; padding:0 20px 16px; flex-wrap:wrap; }
+    .legend-item { display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); }
+    .legend-dot { width:12px;height:12px;border-radius:50%; }
+    .ld-sun { background:var(--gold); }
+    .ld-wed { background:var(--primary-light); }
+    .ld-avail { background:var(--success); }
+    .ld-unavail { background:var(--danger); }
+  </style>
+</head>
+<body>
+
+<div class="page" id="calendar-page">
+  <div class="page-header">
+    <h1 class="page-header-title">My Availability</h1>
+    <div id="cal-user-avatar" class="avatar"></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot ld-sun"></div> Sunday</div>
+    <div class="legend-item"><div class="legend-dot ld-wed"></div> Wednesday</div>
+    <div class="legend-item"><div class="legend-dot ld-avail"></div> Available</div>
+    <div class="legend-item"><div class="legend-dot ld-unavail"></div> Unavailable</div>
+  </div>
+
+  <!-- Calendar Nav -->
+  <div class="cal-nav">
+    <button class="cal-arrow" id="prev-month" aria-label="Previous month">‹</button>
+    <div class="cal-month" id="cal-month-label"></div>
+    <button class="cal-arrow" id="next-month" aria-label="Next month">›</button>
+  </div>
+
+  <!-- Day names -->
+  <div class="cal-grid" style="margin-bottom:4px;">
+    <div class="cal-day-name">Su</div>
+    <div class="cal-day-name">Mo</div>
+    <div class="cal-day-name">Tu</div>
+    <div class="cal-day-name">We</div>
+    <div class="cal-day-name">Th</div>
+    <div class="cal-day-name">Fr</div>
+    <div class="cal-day-name">Sa</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+
+  <div class="container" style="margin-top:24px;">
+    <div class="section-title">📋 My Availability Summary</div>
+    <div id="avail-summary"></div>
+  </div>
+</div>
+
+<!-- Slot Modal -->
+<div class="modal-overlay" id="slot-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="modal-date-title" style="margin-bottom:16px;"></h3>
+    <div id="modal-slots"></div>
+    <button class="btn btn-outline" style="margin-top:8px;" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="home.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></a>
+  <a href="calendar.html" class="nav-item active" data-nav="calendar"><span class="nav-icon">📅</span><span class="nav-label">Calendar</span></a>
+  <a href="lineup.html" class="nav-item" data-nav="lineup"><span class="nav-icon">🎵</span><span class="nav-label">Lineup</span></a>
+  <a href="team.html" class="nav-item" data-nav="team"><span class="nav-icon">👥</span><span class="nav-label">Team</span></a>
+  <a href="profile.html" class="nav-item" data-nav="profile"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+</nav>
+
+<script src="js/app.js"></script>
+<script>
+const user = requireAuth();
+if (!user) throw '';
+
+document.getElementById('cal-user-avatar').textContent = getInitials(user.name);
+
+const today = new Date();
+let viewYear = today.getFullYear();
+let viewMonth = today.getMonth();
+let selectedDk = null;
+let selectedDayType = null;
+
+async function buildCalendar() {
+  const avail = await DB.getAvailability();
+  const userAvail = avail[user.id] || {};
+  const label = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+  document.getElementById('cal-month-label').textContent = label;
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+  // Empty cells
+  for (let i = 0; i < firstDay; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day empty';
+    grid.appendChild(cell);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    const dk = dateKey(date);
+    const isSun = isSunday(date);
+    const isWed = isWednesday(date);
+    const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isToday = dk === dateKey(today);
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-day';
+    cell.textContent = d;
+
+    if (isSun || isWed) {
+      if (!isPast) {
+        cell.classList.add('active-day');
+        cell.classList.add(isSun ? 'sunday' : 'wednesday');
+        // Check availability status
+        const slots = userAvail[dk] || {};
+        const anyAvail = Object.values(slots).some(v => v === 'available');
+        const anyUnavail = Object.values(slots).some(v => v === 'unavailable');
+        if (anyAvail) cell.classList.add('available');
+        else if (anyUnavail) cell.classList.add('unavailable');
+
+        cell.addEventListener('click', () => openSlotModal(dk, isSun ? 'sunday' : 'wednesday'));
+      } else {
+        cell.classList.add(isSun ? 'sunday' : 'wednesday');
+        cell.style.opacity = '0.35';
+      }
+    }
+
+    if (isToday) cell.classList.add('today');
+    grid.appendChild(cell);
+  }
+
+  await renderSummary();
+}
+
+async function openSlotModal(dk, dayType) {
+  selectedDk = dk;
+  selectedDayType = dayType;
+  const avail = await DB.getAvailability();
+  const userAvail = (avail[user.id] || {})[dk] || {};
+  document.getElementById('modal-date-title').textContent = formatDate(dk);
+
+  const slotsEl = document.getElementById('modal-slots');
+  slotsEl.innerHTML = '';
+
+  const slots = dayType === 'sunday'
+    ? [{ key:'8am', label:'8:00 AM Service' }, { key:'10am', label:'10:00 AM Service' }]
+    : [{ key:'wed', label:'Wednesday Service' }];
+
+  slots.forEach(slot => {
+    const status = userAvail[slot.key] || 'none';
+    const isAvail = status === 'available';
+    const isUnavail = status === 'unavailable';
+
+    const div = document.createElement('div');
+    div.className = `slot-btn${isAvail ? ' avail' : isUnavail ? ' unavail' : ''}`;
+    div.innerHTML = `
+      <span class="slot-icon">${isAvail ? '✅' : isUnavail ? '❌' : '⭕'}</span>
+      <div class="slot-info">
+        <div class="slot-time">${slot.label}</div>
+        <div class="slot-status">${isAvail ? 'Available' : isUnavail ? 'Unavailable' : 'Tap to set'}</div>
+      </div>
+    `;
+    div.addEventListener('click', () => toggleSlot(dk, slot.key, status));
+    slotsEl.appendChild(div);
+  });
+
+  document.getElementById('slot-modal').classList.add('open');
+}
+
+async function toggleSlot(dk, slotKey, currentStatus) {
+  const avail = await DB.getAvailability();
+  if (!avail[user.id]) avail[user.id] = {};
+  if (!avail[user.id][dk]) avail[user.id][dk] = {};
+
+  const newStatus = currentStatus !== 'available' ? 'available' : 'unavailable';
+  avail[user.id][dk][slotKey] = newStatus;
+  await DB.saveAvailability(avail);
+
+  const slotLabel = slotKey === '8am' ? '8:00 AM' : slotKey === '10am' ? '10:00 AM' : 'Wednesday';
+  showToast(`${slotLabel}: Marked as ${newStatus} 🙏`, newStatus === 'available' ? 'success' : 'info');
+  await openSlotModal(dk, selectedDayType);
+  await buildCalendar();
+}
+
+function closeModal() {
+  document.getElementById('slot-modal').classList.remove('open');
+}
+document.getElementById('slot-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+async function renderSummary() {
+  const avail = await DB.getAvailability();
+  const userAvail = avail[user.id] || {};
+  const upcoming = getUpcomingServiceDates(2);
+  const el = document.getElementById('avail-summary');
+  const entries = upcoming.filter(dk => userAvail[dk]).slice(0, 6);
+  if (!entries.length) {
+    el.innerHTML = '<p class="text-sm text-muted" style="padding:8px 0;">Tap a Sunday or Wednesday to set your availability.</p>';
+    return;
+  }
+  el.innerHTML = entries.map(dk => {
+    const slots = userAvail[dk] || {};
+    const date = new Date(dk.replace(/-/g, '/'));
+    const isSun = isSunday(date);
+    const chips = Object.entries(slots).map(([k,v]) => {
+      const label = k === '8am' ? '8AM' : k === '10am' ? '10AM' : 'Wed';
+      return `<span class="badge ${v === 'available' ? 'badge-green' : 'badge-red'}">${label}: ${v === 'available' ? '✅' : '❌'}</span>`;
+    }).join(' ');
+    return `<div class="sched-card" style="margin-bottom:10px;">
+      <div class="sched-date">${formatShortDate(dk)} ${isSun ? '🌟' : '💙'}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${chips}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('prev-month').addEventListener('click', async () => {
+  viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  await buildCalendar();
+});
+document.getElementById('next-month').addEventListener('click', async () => {
+  viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  await buildCalendar();
+});
+
+buildCalendar();
+</script>
+</body>
+</html>

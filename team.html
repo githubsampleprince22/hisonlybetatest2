@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Team — HISONLY</title>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .filter-chips { display:flex; gap:8px; overflow-x:auto; padding:0 20px 16px; scrollbar-width:none; }
+    .filter-chips::-webkit-scrollbar { display:none; }
+    .filter-chip {
+      flex-shrink:0; padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:600;
+      border:1px solid var(--border); background:var(--surface); color:var(--text-muted);
+      cursor:pointer; transition:var(--transition);
+    }
+    .filter-chip.active { background:rgba(124,58,237,0.2); border-color:var(--primary-light); color:var(--primary-light); }
+    .admin-actions { display:flex; gap:6px; }
+  </style>
+</head>
+<body>
+
+<div class="page" id="team-page">
+  <div class="page-header">
+    <h1 class="page-header-title">The Team</h1>
+    <div id="team-count" class="badge badge-purple"></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-chips" id="filter-chips">
+    <div class="filter-chip active" data-filter="all">All</div>
+    <div class="filter-chip" data-filter="worship-leader">🎙️ Leaders</div>
+    <div class="filter-chip" data-filter="singer">🎤 Singers</div>
+    <div class="filter-chip" data-filter="musician">🎸 Musicians</div>
+    <div class="filter-chip" data-filter="multimedia">🎬 Multimedia</div>
+  </div>
+
+  <div class="container">
+    <div class="card" style="padding:8px 16px;" id="team-list">
+      <div class="empty-state"><div class="empty-icon">👥</div><p>Loading team…</p></div>
+    </div>
+
+    <!-- Admin: go to schedule -->
+    <div id="admin-team-actions" class="hidden" style="margin-top:16px;">
+      <a href="schedule.html" class="btn btn-primary">📋 Assign Schedules</a>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="home.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></a>
+  <a href="calendar.html" class="nav-item" data-nav="calendar"><span class="nav-icon">📅</span><span class="nav-label">Calendar</span></a>
+  <a href="lineup.html" class="nav-item" data-nav="lineup"><span class="nav-icon">🎵</span><span class="nav-label">Lineup</span></a>
+  <a href="team.html" class="nav-item active" data-nav="team"><span class="nav-icon">👥</span><span class="nav-label">Team</span></a>
+  <a href="profile.html" class="nav-item" data-nav="profile"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+</nav>
+
+<script src="js/app.js"></script>
+<script>
+const user = requireAuth();
+if (!user) throw '';
+
+if (user.isAdmin) document.getElementById('admin-team-actions').classList.remove('hidden');
+
+let currentFilter = 'all';
+
+async function renderTeam() {
+  let users = await DB.getUsers();
+  if (currentFilter !== 'all') users = users.filter(u => u.role === currentFilter);
+  document.getElementById('team-count').textContent = users.length + ' members';
+
+  const list = document.getElementById('team-list');
+  if (!users.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No members in this category.</p></div>`;
+    return;
+  }
+
+  const htmls = [];
+  for (const u of users) {
+    const rd = getRoleDisplay(u);
+    const assignments = await getUserAssignments(u.id);
+    const today = dateKey(new Date());
+    const upcomingCount = assignments.filter(a => a.dateKey >= today).length;
+    htmls.push(`<div class="member-item">
+      <div class="avatar">${getInitials(u.name)}</div>
+      <div class="member-info">
+        <div class="member-name">${u.name} ${u.isAdmin ? '<span class="badge badge-gold" style="font-size:0.65rem;">Admin</span>' : ''}</div>
+        <div class="member-role">${rd.emoji} ${rd.label}${rd.sub ? ' · ' + rd.sub : ''}</div>
+        <div style="margin-top:4px;">
+          <span class="chip">${upcomingCount > 0 ? upcomingCount + ' upcoming' : 'No schedule'}</span>
+        </div>
+      </div>
+      ${user.isAdmin && u.id !== user.id ? `
+        <button class="btn btn-outline btn-sm" onclick="toggleAdmin('${u.id}','${u.isAdmin}')" style="font-size:0.72rem;padding:6px 10px;">
+          ${u.isAdmin ? 'Remove Admin' : 'Make Admin'}
+        </button>
+      ` : ''}
+    </div>`);
+  }
+  list.innerHTML = htmls.join('');
+}
+
+async function toggleAdmin(uid, currentIsAdmin) {
+  if (!confirm(currentIsAdmin === 'true' ? 'Remove admin privileges?' : 'Grant admin privileges?')) return;
+  const users = await DB.getUsers();
+  const u = users.find(x => x.id === uid);
+  if (u) {
+    u.isAdmin = currentIsAdmin !== 'true';
+    if (u.isAdmin) u.isLeader = true;
+    await DB.saveUsers(users);
+    showToast('Updated! 🙌', 'success');
+    renderTeam();
+  }
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    renderTeam();
+  });
+});
+
+renderTeam();
+</script>
+</body>
+</html>

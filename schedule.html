@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assign Schedule — HISONLY Admin</title>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .service-tab {
+      flex: 1;
+      padding: 10px 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: var(--transition);
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+    .service-tab.active {
+      background: rgba(124,58,237,0.2);
+      border-color: var(--primary-light);
+      color: var(--primary-light);
+    }
+    .member-assign-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .member-assign-row:last-child { border-bottom: none; }
+    .assign-check {
+      width: 22px; height: 22px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+    .assign-check.checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .avail-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .avail-yes { background: var(--success); }
+    .avail-no { background: var(--danger); }
+    .avail-unknown { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<div class="page" id="schedule-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-header-title">Assign Schedule</h1>
+      <p class="text-sm text-muted">Admin only</p>
+    </div>
+    <span class="badge badge-gold">⭐ Admin</span>
+  </div>
+
+  <div class="container">
+    <!-- Date selector -->
+    <div class="form-group">
+      <label class="form-label" for="sched-date">Select Service Date</label>
+      <select class="form-select" id="sched-date">
+        <option value="">Choose a date…</option>
+      </select>
+    </div>
+
+    <!-- Slot tabs -->
+    <div id="slot-tabs" class="hidden" style="display:none;">
+      <div class="form-label">Service Slot</div>
+      <div id="slot-tab-wrap" style="display:flex;gap:8px;margin-bottom:20px;"></div>
+    </div>
+
+    <!-- Members list -->
+    <div id="members-panel" class="hidden">
+      <div class="section-title">Team Members</div>
+      <div class="card" style="padding:8px 16px;">
+        <div id="members-list"></div>
+      </div>
+      <button class="btn btn-primary" id="save-sched-btn" style="margin-top:16px;">Save Assignment 💾</button>
+    </div>
+
+    <div id="no-selection" class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>Select a service date to begin assigning team members.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="home.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></a>
+  <a href="calendar.html" class="nav-item" data-nav="calendar"><span class="nav-icon">📅</span><span class="nav-label">Calendar</span></a>
+  <a href="lineup.html" class="nav-item" data-nav="lineup"><span class="nav-icon">🎵</span><span class="nav-label">Lineup</span></a>
+  <a href="team.html" class="nav-item active" data-nav="team"><span class="nav-icon">👥</span><span class="nav-label">Team</span></a>
+  <a href="profile.html" class="nav-item" data-nav="profile"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+</nav>
+
+<script src="js/app.js"></script>
+<script>
+const user = requireAdmin();
+if (!user) throw '';
+
+let selectedDk = null;
+let selectedSlot = null;
+let assignedMembers = new Set();
+
+// Populate service dates (next 8 weeks)
+const dateSelect = document.getElementById('sched-date');
+const dates = getUpcomingServiceDates(3);
+dates.forEach(dk => {
+  const d = new Date(dk.replace(/-/g, '/'));
+  const label = `${formatDate(dk)} — ${isSunday(d) ? 'Sunday' : 'Wednesday'}`;
+  const opt = document.createElement('option');
+  opt.value = dk;
+  opt.textContent = label;
+  dateSelect.appendChild(opt);
+});
+
+dateSelect.addEventListener('change', () => {
+  selectedDk = dateSelect.value;
+  if (!selectedDk) {
+    document.getElementById('no-selection').classList.remove('hidden');
+    document.getElementById('slot-tabs').style.display = 'none';
+    document.getElementById('members-panel').classList.add('hidden');
+    return;
+  }
+  const d = new Date(selectedDk.replace(/-/g, '/'));
+  const sun = isSunday(d);
+  document.getElementById('no-selection').classList.add('hidden');
+  document.getElementById('slot-tabs').style.display = '';
+
+  const tabWrap = document.getElementById('slot-tab-wrap');
+  tabWrap.innerHTML = '';
+  const slots = sun
+    ? [{ key:'8am', label:'8:00 AM ☀️' }, { key:'10am', label:'10:00 AM 🌤️' }]
+    : [{ key:'wed', label:'Wednesday 💙' }];
+  slots.forEach((s, i) => {
+    const t = document.createElement('div');
+    t.className = 'service-tab' + (i === 0 ? ' active' : '');
+    t.textContent = s.label;
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.service-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      selectedSlot = s.key;
+      renderMembers();
+    });
+    tabWrap.appendChild(t);
+    if (i === 0) selectedSlot = s.key;
+  });
+  renderMembers();
+});
+
+async function renderMembers() {
+  if (!selectedDk || !selectedSlot) return;
+  document.getElementById('members-panel').classList.remove('hidden');
+  const schedules = await DB.getSchedules();
+  const current = (schedules[selectedDk] && schedules[selectedDk][selectedSlot]) || [];
+  assignedMembers = new Set(current);
+  const avail = await DB.getAvailability();
+  const allUsers = await DB.getUsers();
+  const users = allUsers.filter(u => u.id !== user.id || true); // show all
+
+  const list = document.getElementById('members-list');
+  list.innerHTML = '';
+  if (!users.length) {
+    list.innerHTML = '<p class="text-sm text-muted" style="padding:16px 0;">No team members registered yet.</p>';
+    return;
+  }
+
+  users.forEach(u => {
+    const userAvail = (avail[u.id] && avail[u.id][selectedDk] && avail[u.id][selectedDk][selectedSlot]);
+    const isAssigned = assignedMembers.has(u.id);
+    const rd = getRoleDisplay(u);
+
+    const row = document.createElement('div');
+    row.className = 'member-assign-row';
+    row.innerHTML = `
+      <div class="assign-check ${isAssigned ? 'checked' : ''}" data-uid="${u.id}">${isAssigned ? '✓' : ''}</div>
+      <div class="avatar" style="width:36px;height:36px;font-size:0.85rem;">${getInitials(u.name)}</div>
+      <div style="flex:1;">
+        <div class="member-name">${u.name}</div>
+        <div class="member-role">${rd.emoji} ${rd.label}${rd.sub ? ' · ' + rd.sub : ''}</div>
+      </div>
+      <div class="avail-indicator ${userAvail === 'available' ? 'avail-yes' : userAvail === 'unavailable' ? 'avail-no' : 'avail-unknown'}" title="${userAvail || 'Not set'}"></div>
+      <div class="text-xs text-muted">${userAvail || '—'}</div>
+    `;
+    const check = row.querySelector('.assign-check');
+    check.addEventListener('click', () => {
+      const uid = check.dataset.uid;
+      if (assignedMembers.has(uid)) { assignedMembers.delete(uid); check.classList.remove('checked'); check.textContent = ''; }
+      else { assignedMembers.add(uid); check.classList.add('checked'); check.textContent = '✓'; }
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('save-sched-btn').addEventListener('click', async () => {
+  if (!selectedDk || !selectedSlot) return;
+  const schedules = await DB.getSchedules();
+  if (!schedules[selectedDk]) schedules[selectedDk] = {};
+  schedules[selectedDk][selectedSlot] = [...assignedMembers];
+  await DB.saveSchedules(schedules);
+  showToast('Schedule saved! 🙌', 'success');
+});
+</script>
+</body>
+</html>

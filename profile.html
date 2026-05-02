@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Profile — HISONLY</title>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .profile-hero {
+      text-align: center;
+      padding: 32px 20px 24px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(245,158,11,0.06));
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .profile-avatar-lg {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--gold));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Outfit',sans-serif; font-weight:700; font-size:1.8rem; color:#fff;
+      margin: 0 auto 14px;
+      box-shadow: var(--shadow-purple);
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-number { font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:800; color:var(--primary-light); }
+    .stat-label { font-size:0.75rem; color:var(--text-muted); margin-top:4px; }
+  </style>
+</head>
+<body>
+
+<div class="page" id="profile-page">
+  <!-- Profile Hero -->
+  <div class="profile-hero" style="padding-top:56px;">
+    <div class="profile-avatar-lg" id="profile-avatar"></div>
+    <h2 id="profile-name"></h2>
+    <div style="margin-top:8px;" id="profile-badges"></div>
+  </div>
+
+  <div class="container">
+    <!-- Stats -->
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">Total Services</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-upcoming">0</div>
+        <div class="stat-label">Upcoming</div>
+      </div>
+    </div>
+
+    <!-- Edit Profile -->
+    <div class="section-title">✏️ Edit Profile</div>
+    <div class="card" style="margin-bottom:16px;">
+      <form id="profile-form">
+        <div class="form-group">
+          <label class="form-label" for="edit-name">Full Name</label>
+          <input class="form-input" type="text" id="edit-name" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <div class="form-input" id="edit-username-display" style="cursor:default;color:var(--text-muted);"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-email">Email <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <input class="form-input" type="email" id="edit-email" placeholder="your@email.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <div class="form-input" id="edit-role-display" style="cursor:default;color:var(--text-muted);"></div>
+        </div>
+        <div class="form-group" id="edit-instrument-group">
+          <label class="form-label" for="edit-instrument">Instrument</label>
+          <select class="form-select" id="edit-instrument">
+            <option value="">Select…</option>
+            <option>Guitar</option><option>Bass Guitar</option><option>Drums</option>
+            <option>Keyboard / Piano</option><option>Violin</option><option>Cajon</option>
+            <option>Trumpet</option><option>Flute</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group" id="edit-specialty-group">
+          <label class="form-label" for="edit-specialty">Multimedia Role</label>
+          <select class="form-select" id="edit-specialty">
+            <option value="">Select…</option>
+            <option>Video Camera</option><option>Photography</option>
+            <option>Screener (Lyrics / Slides)</option><option>OBS Operator</option><option>Lights</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Save Changes 💾</button>
+      </form>
+    </div>
+
+    <!-- Change Password -->
+    <div class="section-title">🔒 Change Password</div>
+    <div class="card" style="margin-bottom:16px;">
+      <form id="pw-form">
+        <div class="form-group">
+          <label class="form-label" for="current-pw">Current Password</label>
+          <input class="form-input" type="password" id="current-pw" placeholder="••••••••"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-pw">New Password</label>
+          <input class="form-input" type="password" id="new-pw" placeholder="Min 6 characters" minlength="6"/>
+        </div>
+        <button class="btn btn-outline" type="submit">Update Password 🔑</button>
+      </form>
+    </div>
+
+    <!-- Admin links -->
+    <div id="admin-links" class="hidden" style="margin-bottom:16px;">
+      <div class="section-title">⚡ Admin</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <a href="schedule.html" class="card" style="text-align:center;text-decoration:none;padding:16px 10px;">
+          <div style="font-size:1.6rem;margin-bottom:6px;">📋</div>
+          <div style="font-size:0.82rem;font-weight:600;">Assign Schedule</div>
+        </a>
+        <a href="team.html" class="card" style="text-align:center;text-decoration:none;padding:16px 10px;">
+          <div style="font-size:1.6rem;margin-bottom:6px;">👥</div>
+          <div style="font-size:0.82rem;font-weight:600;">Manage Team</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <button class="btn btn-danger" id="logout-btn" style="margin-bottom:24px;">Sign Out 👋</button>
+
+    <p class="text-center text-xs text-muted" style="margin-bottom:24px;">© 2025 HISONLY Worship Team™<br>All rights reserved.</p>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="home.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></a>
+  <a href="calendar.html" class="nav-item" data-nav="calendar"><span class="nav-icon">📅</span><span class="nav-label">Calendar</span></a>
+  <a href="lineup.html" class="nav-item" data-nav="lineup"><span class="nav-icon">🎵</span><span class="nav-label">Lineup</span></a>
+  <a href="team.html" class="nav-item" data-nav="team"><span class="nav-icon">👥</span><span class="nav-label">Team</span></a>
+  <a href="profile.html" class="nav-item active" data-nav="profile"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+</nav>
+
+<script src="js/app.js"></script>
+<script>
+const user = requireAuth();
+if (!user) throw '';
+
+// Fill profile
+document.getElementById('profile-avatar').textContent = getInitials(user.name);
+document.getElementById('profile-name').textContent = user.name;
+const rd = getRoleDisplay(user);
+document.getElementById('profile-badges').innerHTML = `
+  <span class="badge badge-purple">${rd.emoji} ${rd.label}${rd.sub ? ' · ' + rd.sub : ''}</span>
+  ${user.isAdmin ? ' <span class="badge badge-gold">⭐ Admin</span>' : ''}
+  ${user.isLeader && !user.isAdmin ? ' <span class="badge badge-blue">🎙️ Leader</span>' : ''}
+`;
+
+// Stats
+const today = dateKey(new Date());
+async function initStats() {
+  const all = await getUserAssignments(user.id);
+  document.getElementById('stat-total').textContent = all.length;
+  document.getElementById('stat-upcoming').textContent = all.filter(a => a.dateKey >= today).length;
+}
+initStats();
+
+// Admin links
+if (user.isAdmin) document.getElementById('admin-links').classList.remove('hidden');
+
+// Fill edit form
+document.getElementById('edit-name').value = user.name;
+document.getElementById('edit-username-display').textContent = '@' + (user.username || '');
+document.getElementById('edit-email').value = user.email || '';
+document.getElementById('edit-role-display').textContent = rd.emoji + ' ' + rd.label + (rd.sub ? ' · ' + rd.sub : '');
+const instGroup = document.getElementById('edit-instrument-group');
+const specGroup = document.getElementById('edit-specialty-group');
+instGroup.classList.toggle('hidden', user.role !== 'musician');
+specGroup.classList.toggle('hidden', user.role !== 'multimedia');
+if (user.role === 'musician' && user.instrument) document.getElementById('edit-instrument').value = user.instrument;
+if (user.role === 'multimedia' && user.specialty) document.getElementById('edit-specialty').value = user.specialty;
+
+// Save profile
+document.getElementById('profile-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const updates = {
+    name: document.getElementById('edit-name').value.trim(),
+    email: document.getElementById('edit-email').value.trim() || '',
+  };
+  if (user.role === 'musician') updates.instrument = document.getElementById('edit-instrument').value;
+  if (user.role === 'multimedia') updates.specialty = document.getElementById('edit-specialty').value;
+  const updated = await updateCurrentUser(updates);
+  document.getElementById('profile-name').textContent = updated.name;
+  document.getElementById('profile-avatar').textContent = getInitials(updated.name);
+  showToast('Profile updated! 🙌', 'success');
+});
+
+// Change password
+document.getElementById('pw-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const cur = document.getElementById('current-pw').value;
+  const nw = document.getElementById('new-pw').value;
+  if (cur !== user.password) { showToast('Current password is incorrect', 'error'); return; }
+  if (nw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+  await updateCurrentUser({ password: nw });
+  showToast('Password updated! 🔑', 'success');
+  document.getElementById('pw-form').reset();
+});
+
+// Logout
+document.getElementById('logout-btn').addEventListener('click', () => {
+  if (confirm('Sign out of HISONLY?')) logoutUser();
+});
+</script>
+</body>
+</html>

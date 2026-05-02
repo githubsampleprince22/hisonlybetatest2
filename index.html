@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HISONLY — Praise & Worship</title>
+  <meta name="description" content="HISONLY Praise & Worship Team Portal — Schedule, Lineups, and Availability Management"/>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="page page-auth" id="login-page">
+  <div class="logo-wrap">
+    <img src="hisonly.jpg" alt="HisOnly Praise & Worship" class="brand-logo"/>
+    <div class="logo-sub">Praise &amp; Worship Team</div>
+  </div>
+
+  <div class="card card-glow" style="width:100%;max-width:380px;">
+    <h2 style="margin-bottom:20px;text-align:center;">Welcome Back</h2>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="login-username">Username</label>
+        <input class="form-input" type="text" id="login-username" placeholder="your_username" required autocomplete="username"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
+        <input class="form-input" type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-primary" type="submit" id="login-btn">Sign In 🙏</button>
+    </form>
+    <div class="divider"></div>
+    <p class="text-center text-sm text-muted">
+      New to HISONLY? <a href="register.html" style="color:var(--primary-light);font-weight:600;">Join the Team</a>
+    </p>
+  </div>
+
+  <p class="text-xs text-muted text-center" style="margin-top:24px;">
+    © 2025 HISONLY Worship Team™
+  </p>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  // Redirect if already logged in
+  if (DB.getCurrentUser()) window.location.href = 'home.html';
+
+  document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    const result = await loginUser(username, password);
+    if (result.ok) {
+      showToast('Welcome back, ' + result.user.name.split(' ')[0] + '! 🙌', 'success');
+      setTimeout(() => window.location.href = 'home.html', 800);
+    } else {
+      showToast(result.error, 'error');
+      btn.textContent = 'Sign In 🙏';
+      btn.disabled = false;
+    }
+  });
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+  }
+</script>
+</body>
+</html>

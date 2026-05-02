@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Worship Lineup — HISONLY</title>
+  <meta name="theme-color" content="#7c3aed"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .lineup-tabs { display:flex; gap:8px; margin-bottom:20px; }
+    .lineup-tab {
+      flex:1; padding:10px 8px; text-align:center;
+      border:1px solid var(--border); border-radius:var(--radius-sm);
+      cursor:pointer; font-family:'Outfit',sans-serif; font-size:0.82rem; font-weight:600;
+      transition:var(--transition); background:var(--surface); color:var(--text-muted);
+    }
+    .lineup-tab.active { background:rgba(124,58,237,0.2); border-color:var(--primary-light); color:var(--primary-light); }
+    .add-song-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .song-actions { display:flex; gap:8px; margin-top:8px; }
+  </style>
+</head>
+<body>
+
+<div class="page" id="lineup-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-header-title">Worship Lineup</h1>
+      <p class="text-sm text-muted" id="lineup-role-label">View &amp; manage song lists</p>
+    </div>
+    <span class="badge badge-purple" id="lineup-badge">🎵</span>
+  </div>
+
+  <div class="container">
+    <!-- Date Selector -->
+    <div class="form-group">
+      <label class="form-label" for="lineup-date">Service Date</label>
+      <select class="form-select" id="lineup-date">
+        <option value="">Select service date…</option>
+      </select>
+    </div>
+
+    <!-- Slot Tabs (for Sunday) -->
+    <div id="lineup-slot-tabs" class="hidden">
+      <div class="lineup-tabs" id="lineup-slot-tab-wrap"></div>
+    </div>
+
+    <!-- Songs Panel -->
+    <div id="lineup-songs-panel" class="hidden">
+      <!-- Add song form (leader/admin only) -->
+      <div class="add-song-form" id="add-song-form">
+        <div class="section-title" style="margin-bottom:12px;">➕ Add Song</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <input class="form-input" id="song-title" placeholder="Song title…" type="text"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <select class="form-select" id="song-key">
+            <option value="">Key…</option>
+            <option>A</option><option>A#/Bb</option><option>B</option><option>C</option>
+            <option>C#/Db</option><option>D</option><option>D#/Eb</option><option>E</option>
+            <option>F</option><option>F#/Gb</option><option>G</option><option>G#/Ab</option>
+          </select>
+          <select class="form-select" id="song-type">
+            <option value="">Type…</option>
+            <option>Praise</option><option>Worship</option><option>Offering</option><option>Closing</option>
+          </select>
+        </div>
+        <input class="form-input" id="song-notes" placeholder="Notes / lead vocalist (optional)" type="text" style="margin-bottom:12px;"/>
+        <button class="btn btn-gold btn-sm w-full" id="add-song-btn" style="width:100%;">Add to Lineup ✨</button>
+      </div>
+
+      <!-- Song List -->
+      <div class="section-title">Song Order</div>
+      <div id="songs-list"></div>
+
+      <div id="songs-empty" class="empty-state hidden">
+        <div class="empty-icon">🎵</div>
+        <p>No songs added yet.<br>Add the first song for this service.</p>
+      </div>
+
+      <div id="lineup-readonly-msg" class="hidden">
+        <div class="card" style="text-align:center;padding:20px;">
+          <div style="font-size:2rem;margin-bottom:8px;">🔒</div>
+          <div class="text-sm text-muted">Only Worship Leaders and Admins can edit the lineup.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="lineup-no-selection" class="empty-state">
+      <div class="empty-icon">🎙️</div>
+      <p>Select a service date to view or set the lineup.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="home.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></a>
+  <a href="calendar.html" class="nav-item" data-nav="calendar"><span class="nav-icon">📅</span><span class="nav-label">Calendar</span></a>
+  <a href="lineup.html" class="nav-item active" data-nav="lineup"><span class="nav-icon">🎵</span><span class="nav-label">Lineup</span></a>
+  <a href="team.html" class="nav-item" data-nav="team"><span class="nav-icon">👥</span><span class="nav-label">Team</span></a>
+  <a href="profile.html" class="nav-item" data-nav="profile"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+</nav>
+
+<script src="js/app.js"></script>
+<script>
+const user = requireAuth();
+if (!user) throw '';
+
+const canEdit = user.isAdmin || user.isLeader;
+if (canEdit) {
+  document.getElementById('lineup-badge').textContent = '🎙️ Leader';
+  document.getElementById('lineup-role-label').textContent = 'Set your worship song lineup';
+}
+
+let selectedDk = null;
+let selectedSlot = null;
+
+// Populate dates
+const dateSelect = document.getElementById('lineup-date');
+const dates = getUpcomingServiceDates(3);
+dates.forEach(dk => {
+  const d = new Date(dk.replace(/-/g, '/'));
+  const opt = document.createElement('option');
+  opt.value = dk;
+  opt.textContent = formatDate(dk) + (isSunday(d) ? ' — Sunday' : ' — Wednesday');
+  dateSelect.appendChild(opt);
+});
+
+dateSelect.addEventListener('change', () => {
+  selectedDk = dateSelect.value;
+  if (!selectedDk) {
+    document.getElementById('lineup-no-selection').classList.remove('hidden');
+    document.getElementById('lineup-songs-panel').classList.add('hidden');
+    document.getElementById('lineup-slot-tabs').classList.add('hidden');
+    return;
+  }
+  document.getElementById('lineup-no-selection').classList.add('hidden');
+  const d = new Date(selectedDk.replace(/-/g, '/'));
+  const sun = isSunday(d);
+  const tabWrap = document.getElementById('lineup-slot-tab-wrap');
+  tabWrap.innerHTML = '';
+
+  const slots = sun
+    ? [{ key:'8am', label:'8:00 AM ☀️' }, { key:'10am', label:'10:00 AM 🌤️' }]
+    : [{ key:'wed', label:'Wednesday 💙' }];
+
+  if (slots.length > 1) {
+    document.getElementById('lineup-slot-tabs').classList.remove('hidden');
+    slots.forEach((s, i) => {
+      const t = document.createElement('div');
+      t.className = 'lineup-tab' + (i === 0 ? ' active' : '');
+      t.textContent = s.label;
+      t.addEventListener('click', async () => {
+        document.querySelectorAll('.lineup-tab').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        selectedSlot = s.key;
+        await loadLineup();
+      });
+      tabWrap.appendChild(t);
+      if (i === 0) selectedSlot = s.key;
+    });
+  } else {
+    document.getElementById('lineup-slot-tabs').classList.add('hidden');
+    selectedSlot = slots[0].key;
+  }
+  await loadLineup();
+});
+
+async function loadLineup() {
+  document.getElementById('lineup-songs-panel').classList.remove('hidden');
+  if (canEdit) {
+    document.getElementById('add-song-form').classList.remove('hidden');
+    document.getElementById('lineup-readonly-msg').classList.add('hidden');
+  } else {
+    document.getElementById('add-song-form').classList.add('hidden');
+    document.getElementById('lineup-readonly-msg').classList.remove('hidden');
+  }
+  await renderSongs();
+}
+
+async function getSlotLineup() {
+  const lineups = await DB.getLineups();
+  if (!lineups[selectedDk]) lineups[selectedDk] = {};
+  if (!lineups[selectedDk][selectedSlot]) lineups[selectedDk][selectedSlot] = { songs: [] };
+  return lineups;
+}
+
+async function renderSongs() {
+  const lineups = await getSlotLineup();
+  const songs = lineups[selectedDk][selectedSlot].songs || [];
+  const list = document.getElementById('songs-list');
+  const empty = document.getElementById('songs-empty');
+  if (!songs.length) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = songs.map((s, i) => `
+    <div class="song-item" id="song-${i}">
+      <div class="song-number">${i+1}</div>
+      <div class="song-details">
+        <div class="song-title">${s.title}</div>
+        <div class="song-key">Key of ${s.key}${s.type ? ' · ' + s.type : ''}</div>
+        ${s.notes ? `<div class="song-notes">📝 ${s.notes}</div>` : ''}
+      </div>
+      ${canEdit ? `<div style="display:flex;flex-direction:column;gap:4px;">
+        ${i > 0 ? `<button class="btn btn-outline btn-sm" onclick="moveSong(${i},-1)" style="padding:4px 8px;">↑</button>` : ''}
+        ${i < songs.length-1 ? `<button class="btn btn-outline btn-sm" onclick="moveSong(${i},1)" style="padding:4px 8px;">↓</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="removeSong(${i})" style="padding:4px 8px;">✕</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function saveLineup(lineups) {
+  await DB.saveLineups(lineups);
+  await renderSongs();
+}
+
+document.getElementById('add-song-btn').addEventListener('click', async () => {
+  const title = document.getElementById('song-title').value.trim();
+  const key = document.getElementById('song-key').value;
+  const type = document.getElementById('song-type').value;
+  const notes = document.getElementById('song-notes').value.trim();
+  if (!title) { showToast('Please enter a song title', 'error'); return; }
+  if (!key) { showToast('Please select the key', 'error'); return; }
+  const lineups = await getSlotLineup();
+  lineups[selectedDk][selectedSlot].songs.push({ title, key, type, notes, addedBy: user.id });
+  await saveLineup(lineups);
+  document.getElementById('song-title').value = '';
+  document.getElementById('song-key').value = '';
+  document.getElementById('song-type').value = '';
+  document.getElementById('song-notes').value = '';
+  showToast('Song added! 🎵', 'success');
+});
+
+async function removeSong(idx) {
+  const lineups = await getSlotLineup();
+  lineups[selectedDk][selectedSlot].songs.splice(idx, 1);
+  await saveLineup(lineups);
+}
+
+async function moveSong(idx, dir) {
+  const lineups = await getSlotLineup();
+  const songs = lineups[selectedDk][selectedSlot].songs;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= songs.length) return;
+  [songs[idx], songs[newIdx]] = [songs[newIdx], songs[idx]];
+  await saveLineup(lineups);
+}
+</script>
+</body>
+</html>
