@@ -27,7 +27,7 @@ const ROLES = {
   'worship-leader': { label: 'Worship Leader', emoji: '🎙️' },
 };
 
-const INSTRUMENTS = ['Guitar', 'Bass Guitar', 'Drums', 'Keyboard/Piano', 'Violin', 'Cajon', 'Trumpet', 'Flute', 'Other'];
+const INSTRUMENTS = ['Guitar', 'Bass Guitar', 'Drums', 'Keyboard/Piano', 'Other'];
 const MULTIMEDIA_ROLES = ['Video Camera', 'Photography', 'Screener (Lyrics/Slides)', 'OBS Operator', 'Lights'];
 
 // ── Auth Guards ──

@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#7c3aed"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="stylesheet" href="css/style.css"/>
+  <!-- Excel Export Library -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     .service-tab {
       flex: 1;
@@ -66,7 +68,12 @@
       <h1 class="page-header-title">Assign Schedule</h1>
       <p class="text-sm text-muted">Admin only</p>
     </div>
-    <span class="badge badge-gold">⭐ Admin</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn btn-gold btn-sm" onclick="exportToExcel()" style="padding:6px 14px; font-size:0.72rem; width:auto;">
+        📤 Export Excel
+      </button>
+      <span class="badge badge-gold">⭐ Admin</span>
+    </div>
   </div>
 
   <div class="container">
@@ -216,6 +223,55 @@ document.getElementById('save-sched-btn').addEventListener('click', async () => 
   await DB.saveSchedules(schedules);
   showToast('Schedule saved! 🙌', 'success');
 });
+
+async function exportToExcel() {
+  showToast('Generating Excel file...', 'info');
+  const schedules = await DB.getSchedules();
+  const users = await DB.getUsers();
+  const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.name }), {});
+  
+  const upcoming = getUpcomingServiceDates(3); // Export next 3 months
+  const rows = [];
+
+  upcoming.forEach(dk => {
+    const dayData = schedules[dk] || {};
+    const d = new Date(dk.replace(/-/g, '/'));
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    // Create rows for each slot
+    Object.entries(dayData).forEach(([slot, memberIds]) => {
+      const slotLabel = slot === '8am' ? '8:00 AM' : slot === '10am' ? '10:00 AM' : 'Wednesday';
+      const memberNames = memberIds.map(id => userMap[id] || 'Unknown').join(', ');
+      
+      rows.push({
+        'Date': dk,
+        'Day': dayName,
+        'Service Slot': slotLabel,
+        'Assigned Members': memberNames
+      });
+    });
+  });
+
+  if (rows.length === 0) {
+    showToast('No schedules to export!', 'error');
+    return;
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Schedule");
+  
+  // Column widths
+  worksheet['!cols'] = [
+    { wch: 12 }, // Date
+    { wch: 12 }, // Day
+    { wch: 15 }, // Service Slot
+    { wch: 50 }  // Assigned Members
+  ];
+
+  XLSX.writeFile(workbook, `HISONLY_Schedule_${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('Excel file downloaded! 📥', 'success');
+}
 </script>
 </body>
 </html>

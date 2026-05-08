@@ -12,6 +12,13 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Disable caching for API calls
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
+});
+
 // Serve static frontend files
 app.use(express.static(__dirname));
 
@@ -50,18 +57,60 @@ async function readData(key) {
   }
 }
 
-// Helper to write data
+// Helper to write data with smart merging to prevent data loss
 async function writeData(key, value) {
+  let existingValue = null;
+  
+  // 1. Fetch existing value
+  if (dbCollection) {
+    const doc = await dbCollection.findOne({ _id: key });
+    existingValue = doc ? doc.value : null;
+  } else {
+    try {
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      const data = JSON.parse(raw);
+      existingValue = data[key] || null;
+    } catch (e) {
+      existingValue = null;
+    }
+  }
+
+  // 2. Perform merge logic
+  let newValue = value;
+  if (existingValue !== null) {
+    if (Array.isArray(existingValue) && Array.isArray(value)) {
+      // Merge arrays by 'id' field if present, otherwise unique items
+      const map = new Map();
+      existingValue.forEach(item => {
+        const id = (item && item.id) || (typeof item === 'string' ? item : JSON.stringify(item));
+        map.set(id, item);
+      });
+      value.forEach(item => {
+        const id = (item && item.id) || (typeof item === 'string' ? item : JSON.stringify(item));
+        map.set(id, item);
+      });
+      newValue = Array.from(map.values());
+    } else if (
+      typeof existingValue === 'object' && existingValue !== null &&
+      typeof value === 'object' && value !== null &&
+      !Array.isArray(existingValue) && !Array.isArray(value)
+    ) {
+      // Shallow merge objects (useful for availability and schedules)
+      newValue = { ...existingValue, ...value };
+    }
+  }
+
+  // 3. Save merged value
   if (dbCollection) {
     await dbCollection.updateOne(
       { _id: key },
-      { $set: { value: value } },
+      { $set: { value: newValue } },
       { upsert: true }
     );
   } else {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     const data = JSON.parse(raw);
-    data[key] = value;
+    data[key] = newValue;
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
   }
 }

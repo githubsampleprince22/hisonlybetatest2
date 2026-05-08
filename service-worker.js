@@ -30,7 +30,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  
+  // Don't cache or fallback for API requests
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('./index.html')))
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => {
+      // Only fallback to index.html for navigation requests or HTML pages
+      if (e.request.mode === 'navigate' || e.request.headers.get('accept').includes('text/html')) {
+        return caches.match('./index.html');
+      }
+    }))
   );
 });
