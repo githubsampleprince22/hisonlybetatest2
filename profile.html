@@ -187,7 +187,7 @@ initStats();
 
 // Admin/Leader links
 if (user.isAdmin) document.getElementById('admin-links').classList.remove('hidden');
-if (user.isAdmin || user.isLeader) document.getElementById('leader-links').classList.remove('hidden');
+if (user.isLeader || user.role === 'singer') document.getElementById('leader-links').classList.remove('hidden');
 
 // Fill edit form
 document.getElementById('edit-name').value = user.name;

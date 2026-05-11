@@ -96,7 +96,7 @@
 const user = requireAuth();
 if (!user) throw '';
 
-const canEdit = user.isAdmin || user.isLeader;
+const canEdit = user.role === 'singer' || user.isLeader;
 if (canEdit) {
   document.getElementById('lineup-badge').textContent = '🎙️ Leader';
   document.getElementById('lineup-role-label').textContent = 'Set your worship song lineup';

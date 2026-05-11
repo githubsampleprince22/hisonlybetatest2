@@ -154,7 +154,7 @@ document.getElementById('hero-role-badge').innerHTML = `
 
 // Admin/Leader sections
 if (user.isAdmin) document.getElementById('admin-section').classList.remove('hidden');
-if (user.isAdmin || user.isLeader) document.getElementById('leader-section').classList.remove('hidden');
+if (user.isLeader || user.role === 'singer') document.getElementById('leader-section').classList.remove('hidden');
 
 // Next Service
 async function renderNextService() {

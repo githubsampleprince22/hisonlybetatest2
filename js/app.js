@@ -157,7 +157,7 @@ async function registerUser(data) {
     return { ok: false, error: 'Username already taken. Please choose another.' };
   }
   const isAdmin = data.adminCode === ADMIN_CODE;
-  const isLeader = isAdmin || data.adminCode === LEADER_CODE || data.role === 'worship-leader';
+  const isLeader = data.adminCode === LEADER_CODE || data.role === 'worship-leader';
   const user = {
     id: 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     name: data.name.trim(),
