@@ -118,14 +118,13 @@
 
 <script src="js/app.js"></script>
 <script>
-const user = requireAdmin();
+const user = requireLeaderOrAdmin();
 if (!user) throw '';
 
 let selectedDk = null;
-let selectedSlot = null;
 let assignedMembers = new Set();
 
-// Populate service dates (next 8 weeks)
+// Populate service dates (next 12 weeks)
 const dateSelect = document.getElementById('sched-date');
 const dates = getUpcomingServiceDates(3);
 dates.forEach(dk => {
@@ -141,45 +140,22 @@ dateSelect.addEventListener('change', () => {
   selectedDk = dateSelect.value;
   if (!selectedDk) {
     document.getElementById('no-selection').classList.remove('hidden');
-    document.getElementById('slot-tabs').style.display = 'none';
     document.getElementById('members-panel').classList.add('hidden');
     return;
   }
-  const d = new Date(selectedDk.replace(/-/g, '/'));
-  const sun = isSunday(d);
   document.getElementById('no-selection').classList.add('hidden');
-  document.getElementById('slot-tabs').style.display = '';
-
-  const tabWrap = document.getElementById('slot-tab-wrap');
-  tabWrap.innerHTML = '';
-  const slots = sun
-    ? [{ key:'8am', label:'8:00 AM ☀️' }, { key:'10am', label:'10:00 AM 🌤️' }]
-    : [{ key:'wed', label:'Wednesday 💙' }];
-  slots.forEach((s, i) => {
-    const t = document.createElement('div');
-    t.className = 'service-tab' + (i === 0 ? ' active' : '');
-    t.textContent = s.label;
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.service-tab').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      selectedSlot = s.key;
-      renderMembers();
-    });
-    tabWrap.appendChild(t);
-    if (i === 0) selectedSlot = s.key;
-  });
   renderMembers();
 });
 
 async function renderMembers() {
-  if (!selectedDk || !selectedSlot) return;
+  if (!selectedDk) return;
   document.getElementById('members-panel').classList.remove('hidden');
   const schedules = await DB.getSchedules();
-  const current = (schedules[selectedDk] && schedules[selectedDk][selectedSlot]) || [];
+  const current = schedules[selectedDk] || [];
   assignedMembers = new Set(current);
   const avail = await DB.getAvailability();
   const allUsers = await DB.getUsers();
-  const users = allUsers.filter(u => u.id !== user.id || true); // show all
+  const users = allUsers;
 
   const list = document.getElementById('members-list');
   list.innerHTML = '';
@@ -189,7 +165,7 @@ async function renderMembers() {
   }
 
   users.forEach(u => {
-    const userAvail = (avail[u.id] && avail[u.id][selectedDk] && avail[u.id][selectedDk][selectedSlot]);
+    const userAvail = (avail[u.id] && avail[u.id][selectedDk]);
     const isAssigned = assignedMembers.has(u.id);
     const rd = getRoleDisplay(u);
 
@@ -216,10 +192,9 @@ async function renderMembers() {
 }
 
 document.getElementById('save-sched-btn').addEventListener('click', async () => {
-  if (!selectedDk || !selectedSlot) return;
+  if (!selectedDk) return;
   const schedules = await DB.getSchedules();
-  if (!schedules[selectedDk]) schedules[selectedDk] = {};
-  schedules[selectedDk][selectedSlot] = [...assignedMembers];
+  schedules[selectedDk] = [...assignedMembers];
   await DB.saveSchedules(schedules);
   showToast('Schedule saved! 🙌', 'success');
 });
@@ -234,21 +209,15 @@ async function exportToExcel() {
   const rows = [];
 
   upcoming.forEach(dk => {
-    const dayData = schedules[dk] || {};
+    const memberIds = schedules[dk] || [];
     const d = new Date(dk.replace(/-/g, '/'));
     const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const memberNames = memberIds.map(id => userMap[id] || 'Unknown').join(', ');
     
-    // Create rows for each slot
-    Object.entries(dayData).forEach(([slot, memberIds]) => {
-      const slotLabel = slot === '8am' ? '8:00 AM' : slot === '10am' ? '10:00 AM' : 'Wednesday';
-      const memberNames = memberIds.map(id => userMap[id] || 'Unknown').join(', ');
-      
-      rows.push({
-        'Date': dk,
-        'Day': dayName,
-        'Service Slot': slotLabel,
-        'Assigned Members': memberNames
-      });
+    rows.push({
+      'Date': dk,
+      'Day': dayName,
+      'Assigned Members': memberNames
     });
   });
 
@@ -265,8 +234,7 @@ async function exportToExcel() {
   worksheet['!cols'] = [
     { wch: 12 }, // Date
     { wch: 12 }, // Day
-    { wch: 15 }, // Service Slot
-    { wch: 50 }  // Assigned Members
+    { wch: 60 }  // Assigned Members
   ];
 
   XLSX.writeFile(workbook, `HISONLY_Schedule_${new Date().toISOString().split('T')[0]}.xlsx`);

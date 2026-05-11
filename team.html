@@ -93,8 +93,8 @@ async function renderTeam() {
         </div>
       </div>
       ${user.isAdmin && u.id !== user.id ? `
-        <button class="btn btn-outline btn-sm" onclick="toggleAdmin('${u.id}','${u.isAdmin}')" style="font-size:0.72rem;padding:6px 10px;">
-          ${u.isAdmin ? 'Remove Admin' : 'Make Admin'}
+        <button class="btn btn-danger btn-sm" onclick="deleteAccount('${u.id}')" style="font-size:0.72rem;padding:6px 10px;">
+          Delete Account
         </button>
       ` : ''}
     </div>`);
@@ -102,17 +102,11 @@ async function renderTeam() {
   list.innerHTML = htmls.join('');
 }
 
-async function toggleAdmin(uid, currentIsAdmin) {
-  if (!confirm(currentIsAdmin === 'true' ? 'Remove admin privileges?' : 'Grant admin privileges?')) return;
-  const users = await DB.getUsers();
-  const u = users.find(x => x.id === uid);
-  if (u) {
-    u.isAdmin = currentIsAdmin !== 'true';
-    if (u.isAdmin) u.isLeader = true;
-    await DB.saveUsers(users);
-    showToast('Updated! 🙌', 'success');
-    renderTeam();
-  }
+async function deleteAccount(uid) {
+  if (!confirm('Are you sure you want to permanently delete this account? This cannot be undone.')) return;
+  await DB.deleteUser(uid);
+  showToast('Account deleted. 🗑️', 'success');
+  renderTeam();
 }
 
 document.querySelectorAll('.filter-chip').forEach(chip => {

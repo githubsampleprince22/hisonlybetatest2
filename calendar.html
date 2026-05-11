@@ -149,48 +149,39 @@ async function openSlotModal(dk, dayType) {
   selectedDk = dk;
   selectedDayType = dayType;
   const avail = await DB.getAvailability();
-  const userAvail = (avail[user.id] || {})[dk] || {};
+  const status = (avail[user.id] || {})[dk] || 'none';
   document.getElementById('modal-date-title').textContent = formatDate(dk);
 
   const slotsEl = document.getElementById('modal-slots');
   slotsEl.innerHTML = '';
 
-  const slots = dayType === 'sunday'
-    ? [{ key:'8am', label:'8:00 AM Service' }, { key:'10am', label:'10:00 AM Service' }]
-    : [{ key:'wed', label:'Wednesday Service' }];
+  const isAvail = status === 'available';
+  const isUnavail = status === 'unavailable';
 
-  slots.forEach(slot => {
-    const status = userAvail[slot.key] || 'none';
-    const isAvail = status === 'available';
-    const isUnavail = status === 'unavailable';
-
-    const div = document.createElement('div');
-    div.className = `slot-btn${isAvail ? ' avail' : isUnavail ? ' unavail' : ''}`;
-    div.innerHTML = `
-      <span class="slot-icon">${isAvail ? '✅' : isUnavail ? '❌' : '⭕'}</span>
-      <div class="slot-info">
-        <div class="slot-time">${slot.label}</div>
-        <div class="slot-status">${isAvail ? 'Available' : isUnavail ? 'Unavailable' : 'Tap to set'}</div>
-      </div>
-    `;
-    div.addEventListener('click', () => toggleSlot(dk, slot.key, status));
-    slotsEl.appendChild(div);
-  });
+  const div = document.createElement('div');
+  div.className = `slot-btn${isAvail ? ' avail' : isUnavail ? ' unavail' : ''}`;
+  div.innerHTML = `
+    <span class="slot-icon">${isAvail ? '✅' : isUnavail ? '❌' : '⭕'}</span>
+    <div class="slot-info">
+      <div class="slot-time">${dayType.charAt(0).toUpperCase() + dayType.slice(1)} Service</div>
+      <div class="slot-status">${isAvail ? 'Available' : isUnavail ? 'Unavailable' : 'Tap to set availability'}</div>
+    </div>
+  `;
+  div.addEventListener('click', () => toggleSlot(dk, status));
+  slotsEl.appendChild(div);
 
   document.getElementById('slot-modal').classList.add('open');
 }
 
-async function toggleSlot(dk, slotKey, currentStatus) {
+async function toggleSlot(dk, currentStatus) {
   const avail = await DB.getAvailability();
   if (!avail[user.id]) avail[user.id] = {};
-  if (!avail[user.id][dk]) avail[user.id][dk] = {};
 
   const newStatus = currentStatus !== 'available' ? 'available' : 'unavailable';
-  avail[user.id][dk][slotKey] = newStatus;
+  avail[user.id][dk] = newStatus;
   await DB.saveAvailability(avail);
 
-  const slotLabel = slotKey === '8am' ? '8:00 AM' : slotKey === '10am' ? '10:00 AM' : 'Wednesday';
-  showToast(`${slotLabel}: Marked as ${newStatus} 🙏`, newStatus === 'available' ? 'success' : 'info');
+  showToast(`Marked as ${newStatus} 🙏`, newStatus === 'available' ? 'success' : 'info');
   await openSlotModal(dk, selectedDayType);
   await buildCalendar();
 }
@@ -213,16 +204,13 @@ async function renderSummary() {
     return;
   }
   el.innerHTML = entries.map(dk => {
-    const slots = userAvail[dk] || {};
+    const status = userAvail[dk];
     const date = new Date(dk.replace(/-/g, '/'));
     const isSun = isSunday(date);
-    const chips = Object.entries(slots).map(([k,v]) => {
-      const label = k === '8am' ? '8AM' : k === '10am' ? '10AM' : 'Wed';
-      return `<span class="badge ${v === 'available' ? 'badge-green' : 'badge-red'}">${label}: ${v === 'available' ? '✅' : '❌'}</span>`;
-    }).join(' ');
+    const chip = `<span class="badge ${status === 'available' ? 'badge-green' : 'badge-red'}">${status === 'available' ? 'Available ✅' : 'Unavailable ❌'}</span>`;
     return `<div class="sched-card" style="margin-bottom:10px;">
       <div class="sched-date">${formatShortDate(dk)} ${isSun ? '🌟' : '💙'}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${chips}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${chip}</div>
     </div>`;
   }).join('');
 }

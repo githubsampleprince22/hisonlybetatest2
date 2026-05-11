@@ -46,42 +46,25 @@
       </select>
     </div>
 
-    <!-- Slot Tabs (for Sunday) -->
-    <div id="lineup-slot-tabs" class="hidden">
-      <div class="lineup-tabs" id="lineup-slot-tab-wrap"></div>
-    </div>
-
-    <!-- Songs Panel -->
+    <!-- Lineup Panel -->
     <div id="lineup-songs-panel" class="hidden">
-      <!-- Add song form (leader/admin only) -->
+      <!-- Add lineup form (leader/admin only) -->
       <div class="add-song-form" id="add-song-form">
-        <div class="section-title" style="margin-bottom:12px;">➕ Add Song</div>
-        <div class="form-group" style="margin-bottom:10px;">
-          <input class="form-input" id="song-title" placeholder="Song title…" type="text"/>
+        <div class="section-title" style="margin-bottom:12px;">➕ Submit Playlist</div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Spotify Playlist URL</label>
+          <input class="form-input" id="song-title" placeholder="https://open.spotify.com/playlist/..." type="text"/>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <select class="form-select" id="song-key">
-            <option value="">Key…</option>
-            <option>A</option><option>A#/Bb</option><option>B</option><option>C</option>
-            <option>C#/Db</option><option>D</option><option>D#/Eb</option><option>E</option>
-            <option>F</option><option>F#/Gb</option><option>G</option><option>G#/Ab</option>
-          </select>
-          <select class="form-select" id="song-type">
-            <option value="">Type…</option>
-            <option>Praise</option><option>Worship</option><option>Offering</option><option>Closing</option>
-          </select>
-        </div>
-        <input class="form-input" id="song-notes" placeholder="Notes / lead vocalist (optional)" type="text" style="margin-bottom:12px;"/>
-        <button class="btn btn-gold btn-sm w-full" id="add-song-btn" style="width:100%;">Add to Lineup ✨</button>
+        <button class="btn btn-gold btn-sm w-full" id="add-song-btn" style="width:100%;">Submit Lineup ✨</button>
       </div>
 
-      <!-- Song List -->
-      <div class="section-title">Song Order</div>
+      <!-- Lineup Display -->
+      <div class="section-title">Current Lineup</div>
       <div id="songs-list"></div>
 
       <div id="songs-empty" class="empty-state hidden">
         <div class="empty-icon">🎵</div>
-        <p>No songs added yet.<br>Add the first song for this service.</p>
+        <p>No lineup submitted yet.<br>Submit the Spotify playlist for this service.</p>
       </div>
 
       <div id="lineup-readonly-msg" class="hidden">
@@ -142,34 +125,7 @@ dateSelect.addEventListener('change', () => {
     return;
   }
   document.getElementById('lineup-no-selection').classList.add('hidden');
-  const d = new Date(selectedDk.replace(/-/g, '/'));
-  const sun = isSunday(d);
-  const tabWrap = document.getElementById('lineup-slot-tab-wrap');
-  tabWrap.innerHTML = '';
-
-  const slots = sun
-    ? [{ key:'8am', label:'8:00 AM ☀️' }, { key:'10am', label:'10:00 AM 🌤️' }]
-    : [{ key:'wed', label:'Wednesday 💙' }];
-
-  if (slots.length > 1) {
-    document.getElementById('lineup-slot-tabs').classList.remove('hidden');
-    slots.forEach((s, i) => {
-      const t = document.createElement('div');
-      t.className = 'lineup-tab' + (i === 0 ? ' active' : '');
-      t.textContent = s.label;
-      t.addEventListener('click', async () => {
-        document.querySelectorAll('.lineup-tab').forEach(x => x.classList.remove('active'));
-        t.classList.add('active');
-        selectedSlot = s.key;
-        await loadLineup();
-      });
-      tabWrap.appendChild(t);
-      if (i === 0) selectedSlot = s.key;
-    });
-  } else {
-    document.getElementById('lineup-slot-tabs').classList.add('hidden');
-    selectedSlot = slots[0].key;
-  }
+  selectedSlot = 'default'; // Using a default slot since multiple slots are removed
   await loadLineup();
 });
 
@@ -182,79 +138,73 @@ async function loadLineup() {
     document.getElementById('add-song-form').classList.add('hidden');
     document.getElementById('lineup-readonly-msg').classList.remove('hidden');
   }
-  await renderSongs();
+  await renderLineup();
 }
 
 async function getSlotLineup() {
   const lineups = await DB.getLineups();
   if (!lineups[selectedDk]) lineups[selectedDk] = {};
-  if (!lineups[selectedDk][selectedSlot]) lineups[selectedDk][selectedSlot] = { songs: [] };
+  if (!lineups[selectedDk][selectedSlot]) lineups[selectedDk][selectedSlot] = { spotifyUrl: '' };
   return lineups;
 }
 
-async function renderSongs() {
+async function renderLineup() {
   const lineups = await getSlotLineup();
-  const songs = lineups[selectedDk][selectedSlot].songs || [];
+  const data = lineups[selectedDk][selectedSlot];
   const list = document.getElementById('songs-list');
   const empty = document.getElementById('songs-empty');
-  if (!songs.length) {
+
+  if (!data.spotifyUrl) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
   }
   empty.classList.add('hidden');
-  list.innerHTML = songs.map((s, i) => `
-    <div class="song-item" id="song-${i}">
-      <div class="song-number">${i+1}</div>
-      <div class="song-details">
-        <div class="song-title">${s.title}</div>
-        <div class="song-key">Key of ${s.key}${s.type ? ' · ' + s.type : ''}</div>
-        ${s.notes ? `<div class="song-notes">📝 ${s.notes}</div>` : ''}
-      </div>
-      ${canEdit ? `<div style="display:flex;flex-direction:column;gap:4px;">
-        ${i > 0 ? `<button class="btn btn-outline btn-sm" onclick="moveSong(${i},-1)" style="padding:4px 8px;">↑</button>` : ''}
-        ${i < songs.length-1 ? `<button class="btn btn-outline btn-sm" onclick="moveSong(${i},1)" style="padding:4px 8px;">↓</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="removeSong(${i})" style="padding:4px 8px;">✕</button>
-      </div>` : ''}
-    </div>
-  `).join('');
-}
 
-async function saveLineup(lineups) {
-  await DB.saveLineups(lineups);
-  await renderSongs();
+  let embedHtml = '';
+  const url = data.spotifyUrl;
+  if (url.includes('spotify.com')) {
+    let embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
+    embedHtml = `
+      <div style="border-radius:12px; overflow:hidden; margin-bottom:16px;">
+        <iframe src="${embedUrl}" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+      </div>
+    `;
+  }
+
+  list.innerHTML = `
+    <div class="card" style="padding:16px;">
+      <div style="font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Spotify Playlist</span>
+        ${canEdit ? `<button class="btn btn-danger btn-sm" onclick="removeLineup()">Remove ✕</button>` : ''}
+      </div>
+      ${embedHtml}
+      <a href="${url}" target="_blank" class="btn btn-outline btn-sm w-full" style="text-align:center; display:block; text-decoration:none;">Open in Spotify ↗</a>
+    </div>
+  `;
 }
 
 document.getElementById('add-song-btn').addEventListener('click', async () => {
-  const title = document.getElementById('song-title').value.trim();
-  const key = document.getElementById('song-key').value;
-  const type = document.getElementById('song-type').value;
-  const notes = document.getElementById('song-notes').value.trim();
-  if (!title) { showToast('Please enter a song title', 'error'); return; }
-  if (!key) { showToast('Please select the key', 'error'); return; }
+  const url = document.getElementById('song-title').value.trim();
+  if (!url) { showToast('Please enter a Spotify URL', 'error'); return; }
+  if (!url.includes('spotify.com')) { showToast('Invalid Spotify URL', 'error'); return; }
+  
   const lineups = await getSlotLineup();
-  lineups[selectedDk][selectedSlot].songs.push({ title, key, type, notes, addedBy: user.id });
-  await saveLineup(lineups);
+  lineups[selectedDk][selectedSlot] = { spotifyUrl: url, addedBy: user.id, updatedAt: new Date().toISOString() };
+  await DB.saveLineups(lineups);
   document.getElementById('song-title').value = '';
-  document.getElementById('song-key').value = '';
-  document.getElementById('song-type').value = '';
-  document.getElementById('song-notes').value = '';
-  showToast('Song added! 🎵', 'success');
+  showToast('Playlist submitted! 🎵', 'success');
+  await renderLineup();
 });
 
-async function removeSong(idx) {
+async function removeLineup() {
+  if (!confirm('Remove this playlist?')) return;
   const lineups = await getSlotLineup();
-  lineups[selectedDk][selectedSlot].songs.splice(idx, 1);
-  await saveLineup(lineups);
-}
-
-async function moveSong(idx, dir) {
-  const lineups = await getSlotLineup();
-  const songs = lineups[selectedDk][selectedSlot].songs;
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= songs.length) return;
-  [songs[idx], songs[newIdx]] = [songs[newIdx], songs[idx]];
-  await saveLineup(lineups);
+  lineups[selectedDk][selectedSlot] = { spotifyUrl: '' };
+  await DB.saveLineups(lineups);
+  showToast('Playlist removed.', 'info');
+  await renderLineup();
 }
 </script>
 </body>

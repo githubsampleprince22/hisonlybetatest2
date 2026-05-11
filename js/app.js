@@ -15,6 +15,12 @@ const DB = {
   saveSchedules: async (s) => { await fetch('/api/data/hisonly_schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }); },
   getLineups: async () => { const res = await fetch('/api/data/hisonly_lineups'); const data = await res.json(); return data || {}; },
   saveLineups: async (l) => { await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); },
+  deleteUser: async (id) => {
+    const res = await fetch('/api/data/hisonly_users');
+    let users = await res.json();
+    users = users.filter(u => u.id !== id);
+    await fetch('/api/data/hisonly_users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
+  }
 };
 
 const ADMIN_CODE = 'HISONLY2025';
@@ -97,9 +103,15 @@ async function getUserAssignments(userId) {
   const schedules = await DB.getSchedules();
   const results = [];
   for (const [dateKey, dayData] of Object.entries(schedules)) {
-    for (const [slot, members] of Object.entries(dayData)) {
-      if (members.includes(userId)) {
-        results.push({ dateKey, slot });
+    // dayData is now an array of user IDs
+    if (Array.isArray(dayData) && dayData.includes(userId)) {
+      results.push({ dateKey, slot: 'default' });
+    } else if (typeof dayData === 'object' && dayData !== null) {
+      // Legacy support for slot-based schedules
+      for (const [slot, members] of Object.entries(dayData)) {
+        if (Array.isArray(members) && members.includes(userId)) {
+          results.push({ dateKey, slot });
+        }
       }
     }
   }

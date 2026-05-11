@@ -85,31 +85,34 @@
     <div class="section-title" style="margin-top:20px;">🗓️ Your Schedule</div>
     <div id="assignments-wrap"></div>
 
-    <!-- Admin quick links -->
+    <!-- Admin quick links (Account Management) -->
     <div id="admin-section" class="hidden">
       <div class="section-title" style="margin-top:20px;">⚡ Admin Tools</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <a href="schedule.html" class="card" style="text-align:center;text-decoration:none;padding:18px 12px;">
-          <div style="font-size:1.8rem;margin-bottom:6px;">📋</div>
-          <div style="font-size:0.85rem;font-weight:600;">Assign Schedule</div>
-        </a>
-        <a href="team.html" class="card" style="text-align:center;text-decoration:none;padding:18px 12px;">
-          <div style="font-size:1.8rem;margin-bottom:6px;">👥</div>
-          <div style="font-size:0.85rem;font-weight:600;">Manage Team</div>
+      <div style="margin-bottom:16px;">
+        <a href="team.html" class="card" style="display:flex;align-items:center;gap:14px;text-decoration:none;padding:16px 18px;">
+          <div style="font-size:1.8rem;">👥</div>
+          <div>
+            <div style="font-weight:700;">Manage Accounts</div>
+            <div class="text-sm text-muted">Delete or remove team member accounts</div>
+          </div>
+          <div style="margin-left:auto;color:var(--text-dim);">›</div>
         </a>
       </div>
     </div>
 
-    <!-- Lineup quick link for leaders -->
+    <!-- Leader tools (Scheduling & Lineup) -->
     <div id="leader-section" class="hidden" style="margin-bottom:20px;">
-      <a href="lineup.html" class="card" style="display:flex;align-items:center;gap:14px;text-decoration:none;padding:16px 18px;">
-        <div style="font-size:1.8rem;">🎙️</div>
-        <div>
-          <div style="font-weight:700;">Set Worship Lineup</div>
-          <div class="text-sm text-muted">Add songs for Sunday or Wednesday</div>
-        </div>
-        <div style="margin-left:auto;color:var(--text-dim);">›</div>
-      </a>
+      <div class="section-title" style="margin-top:20px;">🎙️ Leader Tools</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <a href="schedule.html" class="card" style="text-align:center;text-decoration:none;padding:18px 12px;">
+          <div style="font-size:1.8rem;margin-bottom:6px;">📋</div>
+          <div style="font-size:0.85rem;font-weight:600;">Assign Schedule</div>
+        </a>
+        <a href="lineup.html" class="card" style="text-align:center;text-decoration:none;padding:18px 12px;">
+          <div style="font-size:1.8rem;margin-bottom:6px;">🎵</div>
+          <div style="font-size:0.85rem;font-weight:600;">Set Lineup</div>
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -167,11 +170,12 @@ async function renderNextService() {
     return;
   }
   const next = upcoming[0];
-  const slotLabel = next.slot === '8am' ? '8:00 AM Service' : next.slot === '10am' ? '10:00 AM Service' : 'Wednesday Service';
+  const dateObj = new Date(next.dateKey.replace(/-/g, '/'));
+  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
   wrap.innerHTML = `<div class="next-service-card">
     <div class="next-service-label">Next Assigned Service</div>
     <div class="next-service-date">${formatDate(next.dateKey)}</div>
-    <div class="next-service-time">⏰ ${slotLabel}</div>
+    <div class="next-service-time">⏰ ${dayName} Service</div>
   </div>`;
 }
 
@@ -183,28 +187,34 @@ async function renderLineupPreview() {
   const wrap = document.getElementById('lineup-preview-wrap');
   if (!upcoming.length) { wrap.innerHTML = ''; return; }
   const next = upcoming[0];
-  const lineup = await getLineup(next.dateKey, next.slot);
-  if (!lineup || !lineup.songs || !lineup.songs.length) {
+  const lineup = await getLineup(next.dateKey, 'default');
+  if (!lineup || !lineup.spotifyUrl) {
     wrap.innerHTML = `<div class="lineup-preview">
       <div class="lineup-header"><span class="section-title" style="margin:0;">No lineup posted yet</span></div>
       <p class="text-sm text-muted">Your worship leader hasn't posted the lineup for ${formatShortDate(next.dateKey)} yet.</p>
     </div>`;
     return;
   }
-  const songs = lineup.songs.slice(0, 3);
+  
+  const url = lineup.spotifyUrl;
+  let embedHtml = '';
+  if (url.includes('spotify.com')) {
+    let embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
+    embedHtml = `
+      <div style="border-radius:12px; overflow:hidden; margin-top:12px;">
+        <iframe src="${embedUrl}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+      </div>
+    `;
+  }
+
   wrap.innerHTML = `<div class="lineup-preview">
     <div class="lineup-header">
-      <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)}</span>
+      <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)} — Spotify Playlist</span>
       <a href="lineup.html" class="badge badge-purple">View All</a>
     </div>
-    ${songs.map((s,i) => `<div class="song-item">
-      <div class="song-number">${i+1}</div>
-      <div class="song-details">
-        <div class="song-title">${s.title}</div>
-        <div class="song-key">Key: ${s.key}</div>
-        ${s.notes ? `<div class="song-notes">${s.notes}</div>` : ''}
-      </div>
-    </div>`).join('')}
+    ${embedHtml}
+    <a href="${url}" target="_blank" class="btn btn-outline btn-sm w-full" style="text-align:center; display:block; text-decoration:none; margin-top:10px; font-size:0.75rem;">Open in Spotify ↗</a>
   </div>`;
 }
 
@@ -219,11 +229,11 @@ async function renderAssignments() {
     return;
   }
   wrap.innerHTML = upcoming.map(a => {
-    const slotLabel = a.slot === '8am' ? '8:00 AM' : a.slot === '10am' ? '10:00 AM' : 'Wednesday';
-    const isWed = a.slot === 'wed';
-    return `<div class="sched-card ${isWed ? '' : 'gold'}">
+    const dateObj = new Date(a.dateKey.replace(/-/g, '/'));
+    const isSun = isSunday(dateObj);
+    return `<div class="sched-card ${isSun ? 'gold' : ''}">
       <div class="sched-date">${formatDate(a.dateKey)}</div>
-      <div class="sched-service">⏰ ${slotLabel} Service</div>
+      <div class="sched-service">⏰ ${isSun ? 'Sunday' : 'Wednesday'} Service</div>
     </div>`;
   }).join('');
 }
