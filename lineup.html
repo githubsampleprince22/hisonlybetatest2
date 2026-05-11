@@ -116,7 +116,7 @@ dates.forEach(dk => {
   dateSelect.appendChild(opt);
 });
 
-dateSelect.addEventListener('change', () => {
+dateSelect.addEventListener('change', async () => {
   selectedDk = dateSelect.value;
   if (!selectedDk) {
     document.getElementById('lineup-no-selection').classList.remove('hidden');

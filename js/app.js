@@ -16,10 +16,7 @@ const DB = {
   getLineups: async () => { const res = await fetch('/api/data/hisonly_lineups'); const data = await res.json(); return data || {}; },
   saveLineups: async (l) => { await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); },
   deleteUser: async (id) => {
-    const res = await fetch('/api/data/hisonly_users');
-    let users = await res.json();
-    users = users.filter(u => u.id !== id);
-    await fetch('/api/data/hisonly_users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
+    await fetch(`/api/delete-user/${id}`, { method: 'DELETE' });
   }
 };
 

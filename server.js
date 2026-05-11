@@ -137,6 +137,32 @@ app.post('/api/data/:key', async (req, res) => {
   }
 });
 
+// DELETE a user by ID (bypasses merge logic)
+app.delete('/api/delete-user/:id', async (req, res) => {
+  try {
+    const uid = req.params.id;
+    if (dbCollection) {
+      const doc = await dbCollection.findOne({ _id: 'hisonly_users' });
+      const users = doc ? doc.value : [];
+      const filtered = users.filter(u => u.id !== uid);
+      await dbCollection.updateOne(
+        { _id: 'hisonly_users' },
+        { $set: { value: filtered } },
+        { upsert: true }
+      );
+    } else {
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      const data = JSON.parse(raw);
+      data['hisonly_users'] = (data['hisonly_users'] || []).filter(u => u.id !== uid);
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error while deleting user' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
