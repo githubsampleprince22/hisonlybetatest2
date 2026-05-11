@@ -32,7 +32,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-header-title">Worship Lineup</h1>
-      <p class="text-sm text-muted" id="lineup-role-label">View &amp; manage song lists</p>
+      <p class="text-sm text-muted" id="lineup-role-label">View worship song lineup</p>
     </div>
     <span class="badge badge-purple" id="lineup-badge">🎵</span>
   </div>
@@ -98,7 +98,7 @@ if (!user) throw '';
 
 const canEdit = user.role === 'singer' || user.isLeader;
 if (canEdit) {
-  document.getElementById('lineup-badge').textContent = '🎙️ Leader';
+  document.getElementById('lineup-badge').textContent = '🎙️ Editor';
   document.getElementById('lineup-role-label').textContent = 'Set your worship song lineup';
 }
 
