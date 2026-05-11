@@ -125,11 +125,9 @@ async function buildCalendar() {
         cell.classList.add('active-day');
         cell.classList.add(isSun ? 'sunday' : 'wednesday');
         // Check availability status
-        const slots = userAvail[dk] || {};
-        const anyAvail = Object.values(slots).some(v => v === 'available');
-        const anyUnavail = Object.values(slots).some(v => v === 'unavailable');
-        if (anyAvail) cell.classList.add('available');
-        else if (anyUnavail) cell.classList.add('unavailable');
+        const status = userAvail[dk];
+        if (status === 'available') cell.classList.add('available');
+        else if (status === 'unavailable') cell.classList.add('unavailable');
 
         cell.addEventListener('click', () => openSlotModal(dk, isSun ? 'sunday' : 'wednesday'));
       } else {
