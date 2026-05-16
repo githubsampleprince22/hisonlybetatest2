@@ -5,18 +5,76 @@
 const DB = {
   get: (k) => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } },
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
-  getUsers: async () => { const res = await fetch('/api/data/hisonly_users'); const data = await res.json(); return data || []; },
-  saveUsers: async (u) => { await fetch('/api/data/hisonly_users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) }); },
+  getUsers: async () => { 
+    if (DB._usersCache && Date.now() - DB._usersTime < 2000) return DB._usersCache;
+    const res = await fetch('/api/data/hisonly_users'); 
+    const data = await res.json(); 
+    DB._usersCache = data || [];
+    DB._usersTime = Date.now();
+    return DB._usersCache; 
+  },
+  saveUsers: async (u) => { 
+    DB._usersCache = u;
+    DB._usersTime = Date.now();
+    await fetch('/api/data/hisonly_users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) }); 
+  },
   getCurrentUser: () => DB.get('hisonly_current'),
   setCurrentUser: (u) => DB.set('hisonly_current', u),
-  getAvailability: async () => { const res = await fetch('/api/data/hisonly_avail'); const data = await res.json(); return data || {}; },
-  saveAvailability: async (a) => { await fetch('/api/data/hisonly_avail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a) }); },
-  getSchedules: async () => { const res = await fetch('/api/data/hisonly_schedules'); const data = await res.json(); return data || {}; },
-  saveSchedules: async (s) => { await fetch('/api/data/hisonly_schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }); },
-  getLineups: async () => { const res = await fetch('/api/data/hisonly_lineups'); const data = await res.json(); return data || {}; },
-  saveLineups: async (l) => { await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); },
+  getAvailability: async () => { 
+    if (DB._availCache && Date.now() - DB._availTime < 2000) return DB._availCache;
+    const res = await fetch('/api/data/hisonly_avail'); 
+    const data = await res.json(); 
+    DB._availCache = data || {};
+    DB._availTime = Date.now();
+    return DB._availCache; 
+  },
+  saveAvailability: async (a) => { 
+    DB._availCache = a;
+    DB._availTime = Date.now();
+    await fetch('/api/data/hisonly_avail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a) }); 
+  },
+  getSchedules: async () => { 
+    if (DB._schedulesCache && Date.now() - DB._schedulesTime < 2000) return DB._schedulesCache;
+    const res = await fetch('/api/data/hisonly_schedules'); 
+    let data = await res.json(); 
+    data = data || {};
+    // Normalize legacy slot-based schedules into an array
+    for (const dk in data) {
+      if (typeof data[dk] === 'object' && !Array.isArray(data[dk])) {
+        const members = [];
+        for (const slot in data[dk]) {
+          if (Array.isArray(data[dk][slot])) {
+            members.push(...data[dk][slot]);
+          }
+        }
+        data[dk] = [...new Set(members)];
+      }
+    }
+    DB._schedulesCache = data;
+    DB._schedulesTime = Date.now();
+    return DB._schedulesCache; 
+  },
+  saveSchedules: async (s) => { 
+    DB._schedulesCache = s;
+    DB._schedulesTime = Date.now();
+    await fetch('/api/data/hisonly_schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }); 
+  },
+  getLineups: async () => { 
+    if (DB._lineupsCache && Date.now() - DB._lineupsTime < 2000) return DB._lineupsCache;
+    const res = await fetch('/api/data/hisonly_lineups'); 
+    const data = await res.json(); 
+    DB._lineupsCache = data || {};
+    DB._lineupsTime = Date.now();
+    return DB._lineupsCache; 
+  },
+  saveLineups: async (l) => { 
+    DB._lineupsCache = l;
+    DB._lineupsTime = Date.now();
+    await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); 
+  },
   deleteUser: async (id) => {
     await fetch(`/api/delete-user/${id}`, { method: 'DELETE' });
+    DB._usersCache = null; // Invalidate cache
   }
 };
 
