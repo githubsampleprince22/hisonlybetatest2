@@ -350,6 +350,13 @@ async function renderAnnouncements() {
   }
 }
 
+// Clear cache to ensure fresh data on page load
+DB._usersCache = null;
+DB._availCache = null;
+DB._schedulesCache = null;
+DB._lineupCache = null;
+DB._announcementCache = null;
+
 // Helper: Format time ago
 function getTimeAgo(date) {
   const now = new Date();

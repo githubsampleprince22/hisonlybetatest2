@@ -248,6 +248,13 @@
 const user = requireAuth();
 if (!user) throw '';
 
+// Clear cache to ensure fresh data on page load
+DB._usersCache = null;
+DB._availCache = null;
+DB._schedulesCache = null;
+DB._lineupCache = null;
+DB._announcementCache = null;
+
 // Who can edit: worship-leader, singer, or isLeader flag
 const canEdit = user.isLeader || user.role === 'singer' || user.role === 'worship-leader';
 
