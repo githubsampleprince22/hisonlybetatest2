@@ -58,50 +58,37 @@ async function readData(key) {
   }
 }
 
-// Helper to write data with smart merging to prevent data loss
+// Helper to write data
 async function writeData(key, value) {
-  let existingValue = null;
-  
-  // 1. Fetch existing value
-  if (dbCollection) {
-    const doc = await dbCollection.findOne({ _id: key });
-    existingValue = doc ? doc.value : null;
-  } else {
-    try {
-      const raw = fs.readFileSync(DATA_FILE, 'utf8');
-      const data = JSON.parse(raw);
-      existingValue = data[key] || null;
-    } catch (e) {
-      existingValue = null;
-    }
-  }
-
-  // 2. Perform merge logic
+  // Arrays (announcements, users) are always fully replaced — the frontend
+  // sends the complete updated array so merging would re-add deleted items.
+  // Objects (schedules, availability, lineups) are shallow-merged so that
+  // concurrent saves from different tabs don't wipe each other out.
   let newValue = value;
-  if (existingValue !== null) {
-    if (Array.isArray(existingValue) && Array.isArray(value)) {
-      // Merge arrays by 'id' field if present, otherwise unique items
-      const map = new Map();
-      existingValue.forEach(item => {
-        const id = (item && item.id) || (typeof item === 'string' ? item : JSON.stringify(item));
-        map.set(id, item);
-      });
-      value.forEach(item => {
-        const id = (item && item.id) || (typeof item === 'string' ? item : JSON.stringify(item));
-        map.set(id, item);
-      });
-      newValue = Array.from(map.values());
-    } else if (
-      typeof existingValue === 'object' && existingValue !== null &&
-      typeof value === 'object' && value !== null &&
-      !Array.isArray(existingValue) && !Array.isArray(value)
-    ) {
-      // Shallow merge objects (useful for availability and schedules)
+
+  if (
+    !Array.isArray(value) &&
+    typeof value === 'object' && value !== null
+  ) {
+    // Shallow merge objects only
+    let existingValue = null;
+    if (dbCollection) {
+      const doc = await dbCollection.findOne({ _id: key });
+      existingValue = doc ? doc.value : null;
+    } else {
+      try {
+        const raw = fs.readFileSync(DATA_FILE, 'utf8');
+        existingValue = JSON.parse(raw)[key] || null;
+      } catch (e) {
+        existingValue = null;
+      }
+    }
+    if (existingValue && typeof existingValue === 'object' && !Array.isArray(existingValue)) {
       newValue = { ...existingValue, ...value };
     }
   }
 
-  // 3. Save merged value
+  // Save value
   if (dbCollection) {
     await dbCollection.updateOne(
       { _id: key },

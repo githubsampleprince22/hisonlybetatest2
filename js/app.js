@@ -73,8 +73,9 @@ const DB = {
     await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); 
   },
   getAnnouncements: async () => { 
-    if (DB._announcementsCache && Date.now() - DB._announcementsTime < 2000) return DB._announcementsCache;
-    const res = await fetch('/api/data/hisonly_announcements'); 
+    // Always fetch fresh — no cache for announcements so they always show
+    // correctly after navigating between pages
+    const res = await fetch('/api/data/hisonly_announcements?t=' + Date.now()); 
     const data = await res.json(); 
     DB._announcementsCache = data || [];
     DB._announcementsTime = Date.now();

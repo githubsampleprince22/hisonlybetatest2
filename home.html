@@ -183,7 +183,7 @@ async function renderNextService() {
   </div>`;
 }
 
-// Lineup Preview
+// Lineup Preview — shows YouTube songs + Spotify playlist
 async function renderLineupPreview() {
   const assignments = await getUserAssignments(user.id);
   const today = dateKey(new Date());
@@ -191,36 +191,85 @@ async function renderLineupPreview() {
   const wrap = document.getElementById('lineup-preview-wrap');
   if (!upcoming.length) { wrap.innerHTML = ''; return; }
   const next = upcoming[0];
-  const lineup = await getLineup(next.dateKey, 'default');
-  if (!lineup || !lineup.spotifyUrl) {
+  const lineups = await DB.getLineups();
+  const data = (lineups[next.dateKey] && lineups[next.dateKey].default) || null;
+
+  const hasSongs = data && data.songs && data.songs.length > 0;
+  const hasSpotify = data && data.spotifyUrl;
+
+  if (!hasSongs && !hasSpotify) {
     wrap.innerHTML = `<div class="lineup-preview">
       <div class="lineup-header"><span class="section-title" style="margin:0;">No lineup posted yet</span></div>
       <p class="text-sm text-muted">Your worship leader hasn't posted the lineup for ${formatShortDate(next.dateKey)} yet.</p>
     </div>`;
     return;
   }
-  
-  const url = lineup.spotifyUrl;
-  let embedHtml = '';
-  if (url.includes('spotify.com')) {
-    let embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+
+  // Helper: extract YouTube video ID
+  function ytId(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+      if (u.hostname.includes('youtube.com')) {
+        if (u.searchParams.get('v')) return u.searchParams.get('v');
+        const parts = u.pathname.split('/');
+        const idx = parts.findIndex(p => p === 'embed' || p === 'shorts' || p === 'v');
+        if (idx !== -1) return parts[idx + 1];
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  let innerHtml = '';
+
+  // Show up to 2 YouTube songs as small embeds
+  if (hasSongs) {
+    const previewSongs = data.songs.slice(0, 2);
+    previewSongs.forEach((song, i) => {
+      const vid = ytId(song.url);
+      if (vid) {
+        innerHtml += `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">
+              🎬 ${song.title || 'Song ' + (i+1)}
+            </div>
+            <div style="border-radius:8px;overflow:hidden;aspect-ratio:16/9;">
+              <iframe src="https://www.youtube.com/embed/${vid}" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block;"></iframe>
+            </div>
+          </div>
+        `;
+      } else {
+        innerHtml += `<a href="${song.url}" target="_blank" style="display:block;font-size:0.85rem;margin-bottom:6px;color:var(--primary-light);">🎬 ${song.title || 'Song ' + (i+1)} ↗</a>`;
+      }
+    });
+    if (data.songs.length > 2) {
+      innerHtml += `<div class="text-xs text-muted" style="margin-top:4px;">+${data.songs.length - 2} more song${data.songs.length - 2 !== 1 ? 's' : ''}</div>`;
+    }
+  }
+
+  // Show Spotify if present
+  if (hasSpotify) {
+    let embedUrl = data.spotifyUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
     if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
-    embedHtml = `
-      <div style="border-radius:12px; overflow:hidden; margin-top:12px;">
-        <iframe src="${embedUrl}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    innerHtml += `
+      <div style="margin-top:${hasSongs ? '10px' : '0'};">
+        <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">🎵 Spotify Playlist</div>
+        <div style="border-radius:10px;overflow:hidden;">
+          <iframe src="${embedUrl}" width="100%" height="100" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        </div>
       </div>
     `;
   }
 
   wrap.innerHTML = `<div class="lineup-preview">
     <div class="lineup-header">
-      <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)} — Spotify Playlist</span>
+      <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)} — Lineup</span>
       <a href="lineup.html" class="badge badge-purple">View All</a>
     </div>
-    ${embedHtml}
-    <a href="${url}" target="_blank" class="btn btn-outline btn-sm w-full" style="text-align:center; display:block; text-decoration:none; margin-top:10px; font-size:0.75rem;">Open in Spotify ↗</a>
+    ${innerHtml}
   </div>`;
 }
+
 
 // All Assignments
 async function renderAssignments() {

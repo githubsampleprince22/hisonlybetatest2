@@ -8,22 +8,144 @@
   <link rel="manifest" href="manifest.json"/>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
-    .lineup-tabs { display:flex; gap:8px; margin-bottom:20px; }
-    .lineup-tab {
-      flex:1; padding:10px 8px; text-align:center;
-      border:1px solid var(--border); border-radius:var(--radius-sm);
-      cursor:pointer; font-family:'Outfit',sans-serif; font-size:0.82rem; font-weight:600;
-      transition:var(--transition); background:var(--surface); color:var(--text-muted);
-    }
-    .lineup-tab.active { background:rgba(124,58,237,0.2); border-color:var(--primary-light); color:var(--primary-light); }
     .add-song-form {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px;
+      margin-bottom: 20px;
+    }
+    .song-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .song-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .song-number {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--primary-light);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: rgba(124,58,237,0.15);
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+    .song-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 2px;
+    }
+    .song-type-badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .song-type-youtube { background: rgba(255,0,0,0.15); color: #ff4444; }
+    .song-type-spotify { background: rgba(30,215,96,0.15); color: #1ed760; }
+    .yt-embed {
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+      aspect-ratio: 16/9;
+    }
+    .yt-embed iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .spotify-embed {
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .form-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .form-row .form-input { flex: 1; }
+    .playlist-section {
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .playlist-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .remove-song-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: var(--transition);
+      line-height: 1;
+    }
+    .remove-song-btn:hover { color: #ff4444; background: rgba(255,68,68,0.1); }
+    .songs-count-badge {
+      font-size: 0.75rem;
+      background: rgba(124,58,237,0.2);
+      color: var(--primary-light);
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-weight: 600;
+    }
+    .view-only-notice {
+      background: rgba(124,58,237,0.08);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .tab-toggle {
+      display: flex;
+      gap: 6px;
       margin-bottom: 16px;
     }
-    .song-actions { display:flex; gap:8px; margin-top:8px; }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+    .tab-btn.active {
+      background: rgba(124,58,237,0.2);
+      border-color: var(--primary-light);
+      color: var(--primary-light);
+    }
   </style>
 </head>
 <body>
@@ -48,30 +170,60 @@
 
     <!-- Lineup Panel -->
     <div id="lineup-songs-panel" class="hidden">
-      <!-- Add lineup form (leader/admin only) -->
-      <div class="add-song-form" id="add-song-form">
-        <div class="section-title" style="margin-bottom:12px;">➕ Submit Playlist</div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Spotify Playlist URL</label>
-          <input class="form-input" id="song-title" placeholder="https://open.spotify.com/playlist/..." type="text"/>
+
+      <!-- Add lineup form (leader/admin/singer only) -->
+      <div id="add-song-form" class="hidden">
+        <div class="add-song-form">
+          <div class="section-title" style="margin-bottom:12px;">➕ Add Song to Lineup</div>
+
+          <!-- Tab toggle: YouTube / Spotify -->
+          <div class="tab-toggle">
+            <button class="tab-btn active" id="tab-yt" onclick="switchAddTab('youtube')">🎬 YouTube Song</button>
+            <button class="tab-btn" id="tab-sp" onclick="switchAddTab('spotify')">🎵 Spotify Playlist</button>
+          </div>
+
+          <!-- YouTube form -->
+          <div id="form-youtube">
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="form-label">Song Title</label>
+              <input class="form-input" id="yt-song-title" placeholder="e.g. Way Maker" type="text"/>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">YouTube Link</label>
+              <input class="form-input" id="yt-song-url" placeholder="https://www.youtube.com/watch?v=..." type="text"/>
+            </div>
+            <button class="btn btn-gold btn-sm w-full" onclick="addYoutubeSong()" style="width:100%;">Add Song ✨</button>
+          </div>
+
+          <!-- Spotify form -->
+          <div id="form-spotify" class="hidden">
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Spotify Playlist URL</label>
+              <input class="form-input" id="sp-playlist-url" placeholder="https://open.spotify.com/playlist/..." type="text"/>
+            </div>
+            <button class="btn btn-gold btn-sm w-full" onclick="addSpotifyPlaylist()" style="width:100%;">Submit Playlist ✨</button>
+          </div>
         </div>
-        <button class="btn btn-gold btn-sm w-full" id="add-song-btn" style="width:100%;">Submit Lineup ✨</button>
+      </div>
+
+      <!-- View-only notice for non-editors -->
+      <div id="lineup-readonly-msg" class="hidden">
+        <div class="view-only-notice">
+          👁️ You're viewing the lineup. Only Singers &amp; Worship Leaders can edit it.
+        </div>
       </div>
 
       <!-- Lineup Display -->
-      <div class="section-title">Current Lineup</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="section-title" style="margin:0;">Current Lineup</div>
+        <span class="songs-count-badge" id="songs-count-badge" style="display:none;"></span>
+      </div>
+
       <div id="songs-list"></div>
 
       <div id="songs-empty" class="empty-state hidden">
         <div class="empty-icon">🎵</div>
         <p id="songs-empty-msg">No lineup submitted yet for this service.</p>
-      </div>
-
-      <div id="lineup-readonly-msg" class="hidden">
-        <div class="card" style="text-align:center;padding:20px;">
-          <div style="font-size:2rem;margin-bottom:8px;">🔒</div>
-          <div class="text-sm text-muted">Only Singers and Worship Leaders can submit the lineup.</div>
-        </div>
       </div>
     </div>
 
@@ -96,16 +248,27 @@
 const user = requireAuth();
 if (!user) throw '';
 
-const canEdit = user.role === 'singer' || user.isLeader;
+// Who can edit: worship-leader, singer, or isLeader flag
+const canEdit = user.isLeader || user.role === 'singer' || user.role === 'worship-leader';
+
 if (canEdit) {
   document.getElementById('lineup-badge').textContent = '🎙️ Editor';
-  document.getElementById('lineup-role-label').textContent = 'Set your worship song lineup';
+  document.getElementById('lineup-role-label').textContent = 'Manage the worship song lineup';
 }
 
 let selectedDk = null;
-let selectedSlot = null;
+let addTab = 'youtube'; // current add-song tab
 
-// Populate dates
+// ── Tab switching ──
+function switchAddTab(tab) {
+  addTab = tab;
+  document.getElementById('form-youtube').classList.toggle('hidden', tab !== 'youtube');
+  document.getElementById('form-spotify').classList.toggle('hidden', tab !== 'spotify');
+  document.getElementById('tab-yt').classList.toggle('active', tab === 'youtube');
+  document.getElementById('tab-sp').classList.toggle('active', tab === 'spotify');
+}
+
+// ── Populate date selector ──
 const dateSelect = document.getElementById('lineup-date');
 const dates = getUpcomingServiceDates(3);
 dates.forEach(dk => {
@@ -124,10 +287,10 @@ dateSelect.addEventListener('change', async () => {
     return;
   }
   document.getElementById('lineup-no-selection').classList.add('hidden');
-  selectedSlot = 'default'; // Using a default slot since multiple slots are removed
   await loadLineup();
 });
 
+// ── Load lineup panel ──
 async function loadLineup() {
   document.getElementById('lineup-songs-panel').classList.remove('hidden');
   if (canEdit) {
@@ -140,67 +303,172 @@ async function loadLineup() {
   await renderLineup();
 }
 
-async function getSlotLineup() {
+// ── Get lineup data for selected date ──
+async function getLineupData() {
   const lineups = await DB.getLineups();
   if (!lineups[selectedDk]) lineups[selectedDk] = {};
-  if (!lineups[selectedDk][selectedSlot]) lineups[selectedDk][selectedSlot] = { spotifyUrl: '' };
+  if (!lineups[selectedDk].default) lineups[selectedDk].default = { spotifyUrl: '', songs: [] };
+  // Migrate old format that only had spotifyUrl
+  if (!lineups[selectedDk].default.songs) lineups[selectedDk].default.songs = [];
   return lineups;
 }
 
+// ── Extract YouTube video ID ──
+function getYouTubeId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+    if (u.hostname.includes('youtube.com')) {
+      if (u.searchParams.get('v')) return u.searchParams.get('v');
+      // Handle /embed/ and /shorts/
+      const parts = u.pathname.split('/');
+      const idx = parts.findIndex(p => p === 'embed' || p === 'shorts' || p === 'v');
+      if (idx !== -1) return parts[idx + 1];
+    }
+  } catch (e) {}
+  return null;
+}
+
+// ── Render the full lineup ──
 async function renderLineup() {
-  const lineups = await getSlotLineup();
-  const data = lineups[selectedDk][selectedSlot];
+  const lineups = await getLineupData();
+  const data = lineups[selectedDk].default;
+  const songs = data.songs || [];
+  const hasSpotify = !!data.spotifyUrl;
   const list = document.getElementById('songs-list');
   const empty = document.getElementById('songs-empty');
+  const countBadge = document.getElementById('songs-count-badge');
 
-  if (!data.spotifyUrl) {
+  const totalItems = songs.length + (hasSpotify ? 1 : 0);
+
+  if (totalItems === 0) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
+    countBadge.style.display = 'none';
     return;
   }
-  empty.classList.add('hidden');
 
-  let embedHtml = '';
-  const url = data.spotifyUrl;
-  if (url.includes('spotify.com')) {
-    let embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
-    if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
-    embedHtml = `
-      <div style="border-radius:12px; overflow:hidden; margin-bottom:16px;">
-        <iframe src="${embedUrl}" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+  empty.classList.add('hidden');
+  countBadge.style.display = '';
+  countBadge.textContent = `${totalItems} item${totalItems !== 1 ? 's' : ''}`;
+
+  let html = '';
+
+  // ── Individual YouTube songs ──
+  songs.forEach((song, idx) => {
+    const ytId = getYouTubeId(song.url);
+    const embedHtml = ytId
+      ? `<div class="yt-embed"><iframe src="https://www.youtube.com/embed/${ytId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<a href="${song.url}" target="_blank" class="btn btn-outline btn-sm w-full" style="display:block;text-align:center;text-decoration:none;margin-top:10px;">▶ Open Link ↗</a>`;
+
+    const removeBtn = canEdit
+      ? `<button class="remove-song-btn" onclick="removeSong(${idx})" title="Remove song">✕</button>`
+      : '';
+
+    html += `
+      <div class="song-card">
+        <div class="song-card-header">
+          <div>
+            <span class="song-number">#${idx + 1}</span>
+            <div class="song-title">${song.title || 'Untitled Song'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="song-type-badge song-type-youtube">🎬 YouTube</span>
+            ${removeBtn}
+          </div>
+        </div>
+        ${embedHtml}
+        <a href="${song.url}" target="_blank" class="btn btn-outline btn-sm" style="display:inline-block;text-decoration:none;margin-top:10px;font-size:0.75rem;">Open on YouTube ↗</a>
+      </div>
+    `;
+  });
+
+  // ── Spotify playlist (if any) ──
+  if (hasSpotify) {
+    const spUrl = data.spotifyUrl;
+    let spEmbedUrl = spUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    if (spEmbedUrl.includes('?')) spEmbedUrl = spEmbedUrl.split('?')[0];
+    const removeBtn = canEdit
+      ? `<button class="remove-song-btn" onclick="removeSpotify()" title="Remove playlist" style="font-size:0.85rem;">✕ Remove</button>`
+      : '';
+
+    html += `
+      <div class="song-card">
+        <div class="song-card-header">
+          <div>
+            <span class="song-number">#${songs.length + 1}</span>
+            <div class="song-title">Spotify Playlist</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="song-type-badge song-type-spotify">🎵 Spotify</span>
+            ${removeBtn}
+          </div>
+        </div>
+        <div class="spotify-embed">
+          <iframe src="${spEmbedUrl}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        </div>
+        <a href="${spUrl}" target="_blank" class="btn btn-outline btn-sm" style="display:inline-block;text-decoration:none;margin-top:10px;font-size:0.75rem;">Open in Spotify ↗</a>
       </div>
     `;
   }
 
-  list.innerHTML = `
-    <div class="card" style="padding:16px;">
-      <div style="font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <span>Spotify Playlist</span>
-        ${canEdit ? `<button class="btn btn-danger btn-sm" onclick="removeLineup()">Remove ✕</button>` : ''}
-      </div>
-      ${embedHtml}
-      <a href="${url}" target="_blank" class="btn btn-outline btn-sm w-full" style="text-align:center; display:block; text-decoration:none;">Open in Spotify ↗</a>
-    </div>
-  `;
+  list.innerHTML = html;
 }
 
-document.getElementById('add-song-btn').addEventListener('click', async () => {
-  const url = document.getElementById('song-title').value.trim();
+// ── Add YouTube song ──
+async function addYoutubeSong() {
+  const title = document.getElementById('yt-song-title').value.trim();
+  const url = document.getElementById('yt-song-url').value.trim();
+  if (!url) { showToast('Please enter a YouTube URL', 'error'); return; }
+  const ytId = getYouTubeId(url);
+  if (!ytId && !url.startsWith('http')) { showToast('Please enter a valid YouTube URL', 'error'); return; }
+
+  const lineups = await getLineupData();
+  if (!lineups[selectedDk].default.songs) lineups[selectedDk].default.songs = [];
+  lineups[selectedDk].default.songs.push({
+    title: title || 'Untitled Song',
+    url,
+    addedBy: user.id,
+    addedAt: new Date().toISOString()
+  });
+  await DB.saveLineups(lineups);
+  document.getElementById('yt-song-title').value = '';
+  document.getElementById('yt-song-url').value = '';
+  showToast('Song added to lineup! 🎵', 'success');
+  await renderLineup();
+}
+
+// ── Add Spotify playlist ──
+async function addSpotifyPlaylist() {
+  const url = document.getElementById('sp-playlist-url').value.trim();
   if (!url) { showToast('Please enter a Spotify URL', 'error'); return; }
   if (!url.includes('spotify.com')) { showToast('Invalid Spotify URL', 'error'); return; }
-  
-  const lineups = await getSlotLineup();
-  lineups[selectedDk][selectedSlot] = { spotifyUrl: url, addedBy: user.id, updatedAt: new Date().toISOString() };
+
+  const lineups = await getLineupData();
+  lineups[selectedDk].default.spotifyUrl = url;
+  lineups[selectedDk].default.spotifyAddedBy = user.id;
+  lineups[selectedDk].default.spotifyUpdatedAt = new Date().toISOString();
   await DB.saveLineups(lineups);
-  document.getElementById('song-title').value = '';
+  document.getElementById('sp-playlist-url').value = '';
   showToast('Playlist submitted! 🎵', 'success');
   await renderLineup();
-});
+}
 
-async function removeLineup() {
-  if (!confirm('Remove this playlist?')) return;
-  const lineups = await getSlotLineup();
-  lineups[selectedDk][selectedSlot] = { spotifyUrl: '' };
+// ── Remove a YouTube song by index ──
+async function removeSong(idx) {
+  if (!confirm('Remove this song from the lineup?')) return;
+  const lineups = await getLineupData();
+  lineups[selectedDk].default.songs.splice(idx, 1);
+  await DB.saveLineups(lineups);
+  showToast('Song removed.', 'info');
+  await renderLineup();
+}
+
+// ── Remove Spotify playlist ──
+async function removeSpotify() {
+  if (!confirm('Remove the Spotify playlist?')) return;
+  const lineups = await getLineupData();
+  lineups[selectedDk].default.spotifyUrl = '';
   await DB.saveLineups(lineups);
   showToast('Playlist removed.', 'info');
   await renderLineup();
