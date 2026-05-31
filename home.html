@@ -162,168 +162,192 @@ if (user.isLeader || user.role === 'singer') document.getElementById('leader-sec
 
 // Next Service
 async function renderNextService() {
-  const assignments = await getUserAssignments(user.id);
-  const today = dateKey(new Date());
-  const upcoming = assignments.filter(a => a.dateKey >= today);
-  const wrap = document.getElementById('next-service-wrap');
-  if (!upcoming.length) {
-    wrap.innerHTML = `<div class="card" style="text-align:center;padding:28px 16px;">
-      <div style="font-size:2rem;margin-bottom:8px;">🙏</div>
-      <div class="text-sm text-muted">No upcoming assignments yet.<br>Check your availability in the Calendar!</div>
+  try {
+    const assignments = await getUserAssignments(user.id);
+    const today = dateKey(new Date());
+    const upcoming = assignments.filter(a => a.dateKey >= today);
+    const wrap = document.getElementById('next-service-wrap');
+    if (!upcoming.length) {
+      wrap.innerHTML = `<div class="card" style="text-align:center;padding:28px 16px;">
+        <div style="font-size:2rem;margin-bottom:8px;">🙏</div>
+        <div class="text-sm text-muted">No upcoming assignments yet.<br>Check your availability in the Calendar!</div>
+      </div>`;
+      return;
+    }
+    const next = upcoming[0];
+    const dateObj = new Date(next.dateKey.replace(/-/g, '/'));
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    wrap.innerHTML = `<div class="next-service-card">
+      <div class="next-service-label">Next Assigned Service</div>
+      <div class="next-service-date">${formatDate(next.dateKey)}</div>
+      <div class="next-service-time">⏰ ${dayName} Service</div>
     </div>`;
-    return;
+  } catch (error) {
+    console.error('Error in renderNextService:', error);
+    document.getElementById('next-service-wrap').innerHTML = '';
   }
-  const next = upcoming[0];
-  const dateObj = new Date(next.dateKey.replace(/-/g, '/'));
-  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-  wrap.innerHTML = `<div class="next-service-card">
-    <div class="next-service-label">Next Assigned Service</div>
-    <div class="next-service-date">${formatDate(next.dateKey)}</div>
-    <div class="next-service-time">⏰ ${dayName} Service</div>
-  </div>`;
 }
 
 // Lineup Preview — shows YouTube songs + Spotify playlist
 async function renderLineupPreview() {
-  const assignments = await getUserAssignments(user.id);
-  const today = dateKey(new Date());
-  const upcoming = assignments.filter(a => a.dateKey >= today);
-  const wrap = document.getElementById('lineup-preview-wrap');
-  if (!upcoming.length) { wrap.innerHTML = ''; return; }
-  const next = upcoming[0];
-  const lineups = await DB.getLineups();
-  const data = (lineups[next.dateKey] && lineups[next.dateKey].default) || null;
+  try {
+    const assignments = await getUserAssignments(user.id);
+    const today = dateKey(new Date());
+    const upcoming = assignments.filter(a => a.dateKey >= today);
+    const wrap = document.getElementById('lineup-preview-wrap');
+    if (!upcoming.length) { wrap.innerHTML = ''; return; }
+    const next = upcoming[0];
+    const lineups = await DB.getLineups();
+    const data = (lineups && lineups[next.dateKey] && lineups[next.dateKey].default) || null;
 
-  const hasSongs = data && data.songs && data.songs.length > 0;
-  const hasSpotify = data && data.spotifyUrl;
+    const hasSongs = data && data.songs && data.songs.length > 0;
+    const hasSpotify = data && data.spotifyUrl;
 
-  if (!hasSongs && !hasSpotify) {
-    wrap.innerHTML = `<div class="lineup-preview">
-      <div class="lineup-header"><span class="section-title" style="margin:0;">No lineup posted yet</span></div>
-      <p class="text-sm text-muted">Your worship leader hasn't posted the lineup for ${formatShortDate(next.dateKey)} yet.</p>
-    </div>`;
-    return;
-  }
-
-  // Helper: extract YouTube video ID
-  function ytId(url) {
-    try {
-      const u = new URL(url);
-      if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
-      if (u.hostname.includes('youtube.com')) {
-        if (u.searchParams.get('v')) return u.searchParams.get('v');
-        const parts = u.pathname.split('/');
-        const idx = parts.findIndex(p => p === 'embed' || p === 'shorts' || p === 'v');
-        if (idx !== -1) return parts[idx + 1];
-      }
-    } catch (e) {}
-    return null;
-  }
-
-  let innerHtml = '';
-
-  // Show up to 2 YouTube songs as small embeds
-  if (hasSongs) {
-    const previewSongs = data.songs.slice(0, 2);
-    previewSongs.forEach((song, i) => {
-      const vid = ytId(song.url);
-      if (vid) {
-        innerHtml += `
-          <div style="margin-bottom:10px;">
-            <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">
-              🎬 ${song.title || 'Song ' + (i+1)}
-            </div>
-            <div style="border-radius:8px;overflow:hidden;aspect-ratio:16/9;">
-              <iframe src="https://www.youtube.com/embed/${vid}" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block;"></iframe>
-            </div>
-          </div>
-        `;
-      } else {
-        innerHtml += `<a href="${song.url}" target="_blank" style="display:block;font-size:0.85rem;margin-bottom:6px;color:var(--primary-light);">🎬 ${song.title || 'Song ' + (i+1)} ↗</a>`;
-      }
-    });
-    if (data.songs.length > 2) {
-      innerHtml += `<div class="text-xs text-muted" style="margin-top:4px;">+${data.songs.length - 2} more song${data.songs.length - 2 !== 1 ? 's' : ''}</div>`;
+    if (!hasSongs && !hasSpotify) {
+      wrap.innerHTML = `<div class="lineup-preview">
+        <div class="lineup-header"><span class="section-title" style="margin:0;">No lineup posted yet</span></div>
+        <p class="text-sm text-muted">Your worship leader hasn't posted the lineup for ${formatShortDate(next.dateKey)} yet.</p>
+      </div>`;
+      return;
     }
-  }
 
-  // Show Spotify if present
-  if (hasSpotify) {
-    let embedUrl = data.spotifyUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
-    if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
-    innerHtml += `
-      <div style="margin-top:${hasSongs ? '10px' : '0'};">
-        <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">🎵 Spotify Playlist</div>
-        <div style="border-radius:10px;overflow:hidden;">
-          <iframe src="${embedUrl}" width="100%" height="100" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    // Helper: extract YouTube video ID
+    function ytId(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+        if (u.hostname.includes('youtube.com')) {
+          if (u.searchParams.get('v')) return u.searchParams.get('v');
+          const parts = u.pathname.split('/');
+          const idx = parts.findIndex(p => p === 'embed' || p === 'shorts' || p === 'v');
+          if (idx !== -1) return parts[idx + 1];
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    let innerHtml = '';
+
+    // Show up to 2 YouTube songs as small embeds
+    if (hasSongs) {
+      const previewSongs = data.songs.slice(0, 2);
+      previewSongs.forEach((song, i) => {
+        const vid = ytId(song.url);
+        if (vid) {
+          innerHtml += `
+            <div style="margin-bottom:10px;">
+              <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">
+                🎬 ${song.title || 'Song ' + (i+1)}
+              </div>
+              <div style="border-radius:8px;overflow:hidden;aspect-ratio:16/9;">
+                <iframe src="https://www.youtube.com/embed/${vid}" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block;"></iframe>
+              </div>
+            </div>
+          `;
+        } else {
+          innerHtml += `<a href="${song.url}" target="_blank" style="display:block;font-size:0.85rem;margin-bottom:6px;color:var(--primary-light);">🎬 ${song.title || 'Song ' + (i+1)} ↗</a>`;
+        }
+      });
+      if (data.songs.length > 2) {
+        innerHtml += `<div class="text-xs text-muted" style="margin-top:4px;">+${data.songs.length - 2} more song${data.songs.length - 2 !== 1 ? 's' : ''}</div>`;
+      }
+    }
+
+    // Show Spotify if present
+    if (hasSpotify) {
+      let embedUrl = data.spotifyUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
+      if (embedUrl.includes('?')) embedUrl = embedUrl.split('?')[0];
+      innerHtml += `
+        <div style="margin-top:${hasSongs ? '10px' : '0'};">
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">🎵 Spotify Playlist</div>
+          <div style="border-radius:10px;overflow:hidden;">
+            <iframe src="${embedUrl}" width="100%" height="100" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+          </div>
         </div>
-      </div>
-    `;
-  }
+      `;
+    }
 
-  wrap.innerHTML = `<div class="lineup-preview">
-    <div class="lineup-header">
-      <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)} — Lineup</span>
-      <a href="lineup.html" class="badge badge-purple">View All</a>
-    </div>
-    ${innerHtml}
-  </div>`;
+    wrap.innerHTML = `<div class="lineup-preview">
+      <div class="lineup-header">
+        <span style="font-weight:700;font-size:0.95rem;">${formatShortDate(next.dateKey)} — Lineup</span>
+        <a href="lineup.html" class="badge badge-purple">View All</a>
+      </div>
+      ${innerHtml}
+    </div>`;
+  } catch (error) {
+    console.error('Error in renderLineupPreview:', error);
+    document.getElementById('lineup-preview-wrap').innerHTML = '';
+  }
 }
 
 
 // All Assignments
 async function renderAssignments() {
-  const assignments = await getUserAssignments(user.id);
-  const today = dateKey(new Date());
-  const upcoming = assignments.filter(a => a.dateKey >= today).slice(0, 6);
-  const wrap = document.getElementById('assignments-wrap');
-  if (!upcoming.length) {
-    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No upcoming schedules assigned.</p></div>`;
-    return;
+  try {
+    const assignments = await getUserAssignments(user.id);
+    const today = dateKey(new Date());
+    const upcoming = assignments.filter(a => a.dateKey >= today).slice(0, 6);
+    const wrap = document.getElementById('assignments-wrap');
+    if (!upcoming.length) {
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No upcoming schedules assigned.</p></div>`;
+      return;
+    }
+    wrap.innerHTML = upcoming.map(a => {
+      const dateObj = new Date(a.dateKey.replace(/-/g, '/'));
+      const isSun = isSunday(dateObj);
+      return `<div class="sched-card ${isSun ? 'gold' : ''}">
+        <div class="sched-date">${formatDate(a.dateKey)}</div>
+        <div class="sched-service">⏰ ${isSun ? 'Sunday' : 'Wednesday'} Service</div>
+      </div>`;
+    }).join('');
+  } catch (error) {
+    console.error('Error in renderAssignments:', error);
+    document.getElementById('assignments-wrap').innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>Could not load assignments.</p></div>`;
   }
-  wrap.innerHTML = upcoming.map(a => {
-    const dateObj = new Date(a.dateKey.replace(/-/g, '/'));
-    const isSun = isSunday(dateObj);
-    return `<div class="sched-card ${isSun ? 'gold' : ''}">
-      <div class="sched-date">${formatDate(a.dateKey)}</div>
-      <div class="sched-service">⏰ ${isSun ? 'Sunday' : 'Wednesday'} Service</div>
-    </div>`;
-  }).join('');
 }
 
 // Announcements
 async function renderAnnouncements() {
-  const announcements = await getAnnouncements();
-  const wrap = document.getElementById('announcements-wrap');
-  
-  if (!announcements.length) {
-    wrap.innerHTML = `<div class="card" style="text-align:center;padding:20px 16px;">
-      <div style="font-size:1.5rem;margin-bottom:8px;">📭</div>
-      <div class="text-sm text-muted">No announcements yet</div>
-    </div>`;
-    return;
-  }
+  try {
+    const announcements = await getAnnouncements();
+    const wrap = document.getElementById('announcements-wrap');
+    
+    if (!announcements || !Array.isArray(announcements) || announcements.length === 0) {
+      wrap.innerHTML = `<div class="card" style="text-align:center;padding:20px 16px;">
+        <div style="font-size:1.5rem;margin-bottom:8px;">📭</div>
+        <div class="text-sm text-muted">No announcements yet</div>
+      </div>`;
+      return;
+    }
 
-  wrap.innerHTML = announcements.slice(0, 5).map(ann => {
-    const author = ann.author || 'Administrator';
-    const typeEmoji = {
-      'general': '📢',
-      'lineup': '🎵',
-      'song-submission': '🎤'
-    }[ann.type] || '📢';
-    
-    const createdDate = new Date(ann.createdAt);
-    const timeAgo = getTimeAgo(createdDate);
-    
-    return `<div class="card" style="padding:16px 18px;margin-bottom:12px;border-left:4px solid var(--primary);">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div style="font-weight:700;font-size:0.95rem;">${typeEmoji} ${ann.title}</div>
-        <div class="text-xs text-muted">${timeAgo}</div>
-      </div>
-      <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">by ${author}</div>
-      <div style="font-size:0.9rem;line-height:1.5;">${ann.content}</div>
+    wrap.innerHTML = announcements.slice(0, 5).map(ann => {
+      const author = ann.author || 'Administrator';
+      const typeEmoji = {
+        'general': '📢',
+        'lineup': '🎵',
+        'song-submission': '🎤'
+      }[ann.type] || '📢';
+      
+      const createdDate = new Date(ann.createdAt);
+      const timeAgo = getTimeAgo(createdDate);
+      
+      return `<div class="card" style="padding:16px 18px;margin-bottom:12px;border-left:4px solid var(--primary);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:0.95rem;">${typeEmoji} ${ann.title}</div>
+          <div class="text-xs text-muted">${timeAgo}</div>
+        </div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">by ${author}</div>
+        <div style="font-size:0.9rem;line-height:1.5;">${ann.content}</div>
+      </div>`;
+    }).join('');
+  } catch (error) {
+    console.error('Error in renderAnnouncements:', error);
+    const wrap = document.getElementById('announcements-wrap');
+    wrap.innerHTML = `<div class="card" style="text-align:center;padding:20px 16px;">
+      <div style="font-size:1.5rem;margin-bottom:8px;">⚠️</div>
+      <div class="text-sm text-muted">Could not load announcements</div>
     </div>`;
-  }).join('');
+  }
 }
 
 // Helper: Format time ago
@@ -343,10 +367,37 @@ function getTimeAgo(date) {
 }
 
 async function initHome() {
-  await renderNextService();
-  await renderLineupPreview();
-  await renderAnnouncements();
-  await renderAssignments();
+  try {
+    await renderNextService().catch(err => {
+      console.error('Error rendering next service:', err);
+    });
+  } catch (err) {
+    console.error('Error in renderNextService:', err);
+  }
+  
+  try {
+    await renderLineupPreview().catch(err => {
+      console.error('Error rendering lineup preview:', err);
+    });
+  } catch (err) {
+    console.error('Error in renderLineupPreview:', err);
+  }
+  
+  try {
+    await renderAnnouncements().catch(err => {
+      console.error('Error rendering announcements:', err);
+    });
+  } catch (err) {
+    console.error('Error in renderAnnouncements:', err);
+  }
+  
+  try {
+    await renderAssignments().catch(err => {
+      console.error('Error rendering assignments:', err);
+    });
+  } catch (err) {
+    console.error('Error in renderAssignments:', err);
+  }
 }
 initHome();
 </script>

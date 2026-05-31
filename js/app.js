@@ -7,11 +7,17 @@ const DB = {
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
   getUsers: async () => { 
     if (DB._usersCache && Date.now() - DB._usersTime < 2000) return DB._usersCache;
-    const res = await fetch('/api/data/hisonly_users'); 
-    const data = await res.json(); 
-    DB._usersCache = data || [];
-    DB._usersTime = Date.now();
-    return DB._usersCache; 
+    try {
+      const res = await fetch('/api/data/hisonly_users'); 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json(); 
+      DB._usersCache = data || [];
+      DB._usersTime = Date.now();
+      return DB._usersCache;
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      return DB._usersCache || [];
+    }
   },
   saveUsers: async (u) => { 
     DB._usersCache = u;
@@ -22,11 +28,17 @@ const DB = {
   setCurrentUser: (u) => DB.set('hisonly_current', u),
   getAvailability: async () => { 
     if (DB._availCache && Date.now() - DB._availTime < 2000) return DB._availCache;
-    const res = await fetch('/api/data/hisonly_avail'); 
-    const data = await res.json(); 
-    DB._availCache = data || {};
-    DB._availTime = Date.now();
-    return DB._availCache; 
+    try {
+      const res = await fetch('/api/data/hisonly_avail'); 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json(); 
+      DB._availCache = data || {};
+      DB._availTime = Date.now();
+      return DB._availCache;
+    } catch (err) {
+      console.error('Error fetching availability:', err);
+      return DB._availCache || {};
+    }
   },
   saveAvailability: async (a) => { 
     DB._availCache = a;
@@ -35,24 +47,30 @@ const DB = {
   },
   getSchedules: async () => { 
     if (DB._schedulesCache && Date.now() - DB._schedulesTime < 2000) return DB._schedulesCache;
-    const res = await fetch('/api/data/hisonly_schedules'); 
-    let data = await res.json(); 
-    data = data || {};
-    // Normalize legacy slot-based schedules into an array
-    for (const dk in data) {
-      if (typeof data[dk] === 'object' && !Array.isArray(data[dk])) {
-        const members = [];
-        for (const slot in data[dk]) {
-          if (Array.isArray(data[dk][slot])) {
-            members.push(...data[dk][slot]);
+    try {
+      const res = await fetch('/api/data/hisonly_schedules'); 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      let data = await res.json(); 
+      data = data || {};
+      // Normalize legacy slot-based schedules into an array
+      for (const dk in data) {
+        if (typeof data[dk] === 'object' && !Array.isArray(data[dk])) {
+          const members = [];
+          for (const slot in data[dk]) {
+            if (Array.isArray(data[dk][slot])) {
+              members.push(...data[dk][slot]);
+            }
           }
+          data[dk] = [...new Set(members)];
         }
-        data[dk] = [...new Set(members)];
       }
+      DB._schedulesCache = data;
+      DB._schedulesTime = Date.now();
+      return DB._schedulesCache;
+    } catch (err) {
+      console.error('Error fetching schedules:', err);
+      return DB._schedulesCache || {};
     }
-    DB._schedulesCache = data;
-    DB._schedulesTime = Date.now();
-    return DB._schedulesCache; 
   },
   saveSchedules: async (s) => { 
     DB._schedulesCache = s;
@@ -61,11 +79,17 @@ const DB = {
   },
   getLineups: async () => { 
     // Always fetch fresh — no cache so lineup always shows current data
-    const res = await fetch('/api/data/hisonly_lineups?t=' + Date.now()); 
-    const data = await res.json(); 
-    DB._lineupsCache = data || {};
-    DB._lineupsTime = Date.now();
-    return DB._lineupsCache; 
+    try {
+      const res = await fetch('/api/data/hisonly_lineups?t=' + Date.now()); 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json(); 
+      DB._lineupsCache = data || {};
+      DB._lineupsTime = Date.now();
+      return DB._lineupsCache;
+    } catch (err) {
+      console.error('Error fetching lineups:', err);
+      return DB._lineupsCache || {};
+    }
   },
   saveLineups: async (l) => { 
     DB._lineupsCache = l;
@@ -75,11 +99,17 @@ const DB = {
   getAnnouncements: async () => { 
     // Always fetch fresh — no cache for announcements so they always show
     // correctly after navigating between pages
-    const res = await fetch('/api/data/hisonly_announcements?t=' + Date.now()); 
-    const data = await res.json(); 
-    DB._announcementsCache = data || [];
-    DB._announcementsTime = Date.now();
-    return DB._announcementsCache; 
+    try {
+      const res = await fetch('/api/data/hisonly_announcements?t=' + Date.now()); 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json(); 
+      DB._announcementsCache = data || [];
+      DB._announcementsTime = Date.now();
+      return DB._announcementsCache;
+    } catch (err) {
+      console.error('Error fetching announcements:', err);
+      return DB._announcementsCache || [];
+    }
   },
   saveAnnouncements: async (a) => { 
     DB._announcementsCache = a;
