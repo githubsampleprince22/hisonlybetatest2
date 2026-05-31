@@ -281,6 +281,12 @@ dates.forEach(dk => {
 
 dateSelect.addEventListener('change', async () => {
   selectedDk = dateSelect.value;
+  // Remember the selection so it survives navigation
+  if (selectedDk) {
+    sessionStorage.setItem('lineup_selected_date', selectedDk);
+  } else {
+    sessionStorage.removeItem('lineup_selected_date');
+  }
   if (!selectedDk) {
     document.getElementById('lineup-no-selection').classList.remove('hidden');
     document.getElementById('lineup-songs-panel').classList.add('hidden');
@@ -289,6 +295,15 @@ dateSelect.addEventListener('change', async () => {
   document.getElementById('lineup-no-selection').classList.add('hidden');
   await loadLineup();
 });
+
+// ── Auto-restore last selected date on page load ──
+const savedDate = sessionStorage.getItem('lineup_selected_date');
+if (savedDate && dates.includes(savedDate)) {
+  dateSelect.value = savedDate;
+  selectedDk = savedDate;
+  document.getElementById('lineup-no-selection').classList.add('hidden');
+  loadLineup();
+}
 
 // ── Load lineup panel ──
 async function loadLineup() {

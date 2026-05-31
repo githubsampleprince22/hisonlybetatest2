@@ -60,8 +60,8 @@ const DB = {
     await fetch('/api/data/hisonly_schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }); 
   },
   getLineups: async () => { 
-    if (DB._lineupsCache && Date.now() - DB._lineupsTime < 2000) return DB._lineupsCache;
-    const res = await fetch('/api/data/hisonly_lineups'); 
+    // Always fetch fresh — no cache so lineup always shows current data
+    const res = await fetch('/api/data/hisonly_lineups?t=' + Date.now()); 
     const data = await res.json(); 
     DB._lineupsCache = data || {};
     DB._lineupsTime = Date.now();
