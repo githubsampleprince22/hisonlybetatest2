@@ -81,6 +81,10 @@
     <div class="section-title" style="margin-top:20px;">🎵 This Week's Lineup</div>
     <div id="lineup-preview-wrap"></div>
 
+    <!-- Announcements -->
+    <div class="section-title" style="margin-top:20px;">📢 Announcements</div>
+    <div id="announcements-wrap"></div>
+
     <!-- All upcoming assignments -->
     <div class="section-title" style="margin-top:20px;">🗓️ Your Schedule</div>
     <div id="assignments-wrap"></div>
@@ -238,9 +242,61 @@ async function renderAssignments() {
   }).join('');
 }
 
+// Announcements
+async function renderAnnouncements() {
+  const announcements = await getAnnouncements();
+  const wrap = document.getElementById('announcements-wrap');
+  
+  if (!announcements.length) {
+    wrap.innerHTML = `<div class="card" style="text-align:center;padding:20px 16px;">
+      <div style="font-size:1.5rem;margin-bottom:8px;">📭</div>
+      <div class="text-sm text-muted">No announcements yet</div>
+    </div>`;
+    return;
+  }
+
+  wrap.innerHTML = announcements.slice(0, 5).map(ann => {
+    const author = ann.author || 'Administrator';
+    const typeEmoji = {
+      'general': '📢',
+      'lineup': '🎵',
+      'song-submission': '🎤'
+    }[ann.type] || '📢';
+    
+    const createdDate = new Date(ann.createdAt);
+    const timeAgo = getTimeAgo(createdDate);
+    
+    return `<div class="card" style="padding:16px 18px;margin-bottom:12px;border-left:4px solid var(--primary);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:0.95rem;">${typeEmoji} ${ann.title}</div>
+        <div class="text-xs text-muted">${timeAgo}</div>
+      </div>
+      <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">by ${author}</div>
+      <div style="font-size:0.9rem;line-height:1.5;">${ann.content}</div>
+    </div>`;
+  }).join('');
+}
+
+// Helper: Format time ago
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 async function initHome() {
   await renderNextService();
   await renderLineupPreview();
+  await renderAnnouncements();
   await renderAssignments();
 }
 initHome();

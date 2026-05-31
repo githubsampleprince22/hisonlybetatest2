@@ -72,6 +72,19 @@ const DB = {
     DB._lineupsTime = Date.now();
     await fetch('/api/data/hisonly_lineups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(l) }); 
   },
+  getAnnouncements: async () => { 
+    if (DB._announcementsCache && Date.now() - DB._announcementsTime < 2000) return DB._announcementsCache;
+    const res = await fetch('/api/data/hisonly_announcements'); 
+    const data = await res.json(); 
+    DB._announcementsCache = data || [];
+    DB._announcementsTime = Date.now();
+    return DB._announcementsCache; 
+  },
+  saveAnnouncements: async (a) => { 
+    DB._announcementsCache = a;
+    DB._announcementsTime = Date.now();
+    await fetch('/api/data/hisonly_announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a) }); 
+  },
   deleteUser: async (id) => {
     await fetch(`/api/delete-user/${id}`, { method: 'DELETE' });
     DB._usersCache = null; // Invalidate cache
@@ -220,6 +233,7 @@ async function registerUser(data) {
     email: data.email ? data.email.toLowerCase().trim() : '',
     password: data.password,
     role: data.role,
+    roles: [data.role],
     instrument: data.instrument || null,
     specialty: data.specialty || null,
     isAdmin,
@@ -268,4 +282,100 @@ async function updateCurrentUser(updates) {
 async function getUserById(id) {
   const users = await DB.getUsers();
   return users.find(u => u.id === id) || null;
+}
+
+// ── Multi-Role Support ──
+function getUserRoles(user) {
+  // Support both legacy (single role) and new (multi-role) format
+  if (user.roles && Array.isArray(user.roles)) {
+    return user.roles;
+  }
+  return user.role ? [user.role] : [];
+}
+
+function hasRole(user, roleToCheck) {
+  const roles = getUserRoles(user);
+  return roles.includes(roleToCheck);
+}
+
+async function addRoleToUser(userId, newRole) {
+  const user = await getUserById(userId);
+  if (!user) return null;
+  const roles = getUserRoles(user);
+  if (!roles.includes(newRole)) {
+    roles.push(newRole);
+  }
+  user.roles = roles;
+  if (!user.role) user.role = roles[0];
+  const users = await DB.getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx !== -1) {
+    users[idx] = user;
+    await DB.saveUsers(users);
+  }
+  return user;
+}
+
+async function removeRoleFromUser(userId, roleToRemove) {
+  const user = await getUserById(userId);
+  if (!user) return null;
+  let roles = getUserRoles(user);
+  roles = roles.filter(r => r !== roleToRemove);
+  user.roles = roles;
+  if (roles.length > 0 && user.role === roleToRemove) {
+    user.role = roles[0];
+  }
+  const users = await DB.getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx !== -1) {
+    users[idx] = user;
+    await DB.saveUsers(users);
+  }
+  return user;
+}
+
+// ── Announcements ──
+async function createAnnouncement(data) {
+  const announcements = await DB.getAnnouncements();
+  const announcement = {
+    id: 'ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    title: data.title,
+    content: data.content,
+    author: data.author,
+    authorId: data.authorId,
+    type: data.type || 'general', // 'general', 'lineup', 'song-submission'
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  announcements.push(announcement);
+  await DB.saveAnnouncements(announcements);
+  return announcement;
+}
+
+async function getAnnouncements() {
+  const announcements = await DB.getAnnouncements();
+  // Sort by newest first
+  return announcements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+async function deleteAnnouncement(id) {
+  const announcements = await DB.getAnnouncements();
+  const idx = announcements.findIndex(a => a.id === id);
+  if (idx !== -1) {
+    announcements.splice(idx, 1);
+    await DB.saveAnnouncements(announcements);
+    return true;
+  }
+  return false;
+}
+
+async function updateAnnouncement(id, updates) {
+  const announcements = await DB.getAnnouncements();
+  const idx = announcements.findIndex(a => a.id === id);
+  if (idx !== -1) {
+    announcements[idx] = { ...announcements[idx], ...updates, updatedAt: new Date().toISOString() };
+    await DB.saveAnnouncements(announcements);
+    return announcements[idx];
+  }
+  return null;
 }

@@ -40,7 +40,8 @@ if (process.env.MONGO_URI) {
       hisonly_users: [],
       hisonly_avail: {},
       hisonly_schedules: {},
-      hisonly_lineups: {}
+      hisonly_lineups: {},
+      hisonly_announcements: []
     }, null, 2));
   }
 }
