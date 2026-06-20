@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hisonly-v4';
+const CACHE_NAME = 'hisonly-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -32,14 +32,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   
-  // Don't cache or fallback for API requests or non-GET requests
-  if (url.pathname.startsWith('/api/') || e.request.method !== 'GET') {
-    e.respondWith(fetch(e.request));
+  // Don't intercept API requests or non-GET requests — let the browser handle them naturally
+  if (url.pathname.includes('/api/') || e.request.method !== 'GET') {
     return;
   }
 
-  // Use Network-First strategy for HTML navigation requests to ensure fresh content
-  if (e.request.mode === 'navigate' || (e.request.headers.get('accept') && e.request.headers.get('accept').includes('text/html'))) {
+  // Use Network-First strategy for HTML, JS, and CSS files to ensure fresh logic and markup
+  const isHtml = e.request.mode === 'navigate' || (e.request.headers.get('accept') && e.request.headers.get('accept').includes('text/html'));
+  const isCodeOrStyle = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+
+  if (isHtml || isCodeOrStyle) {
     e.respondWith(
       fetch(e.request)
         .then(response => {
@@ -50,13 +52,13 @@ self.addEventListener('fetch', e => {
           return response;
         })
         .catch(() => {
-          return caches.match(e.request).then(cached => cached || caches.match('./index.html'));
+          return caches.match(e.request).then(cached => cached || (isHtml ? caches.match('./index.html') : null));
         })
     );
     return;
   }
 
-  // Use Stale-While-Revalidate for static assets
+  // Use Stale-While-Revalidate for other static assets (images, fonts, manifest)
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) {
