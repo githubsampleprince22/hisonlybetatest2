@@ -252,8 +252,8 @@ if (!user) throw '';
 DB._usersCache = null;
 DB._availCache = null;
 DB._schedulesCache = null;
-DB._lineupCache = null;
-DB._announcementCache = null;
+DB._lineupsCache = null;
+DB._announcementsCache = null;
 
 // Who can edit: worship-leader, singer, or isLeader flag
 const canEdit = user.isLeader || user.role === 'singer' || user.role === 'worship-leader';

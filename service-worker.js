@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hisonly-v3';
+const CACHE_NAME = 'hisonly-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -32,18 +32,45 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   
-  // Don't cache or fallback for API requests
-  if (url.pathname.startsWith('/api/')) {
+  // Don't cache or fallback for API requests or non-GET requests
+  if (url.pathname.startsWith('/api/') || e.request.method !== 'GET') {
     e.respondWith(fetch(e.request));
     return;
   }
 
+  // Use Network-First strategy for HTML navigation requests to ensure fresh content
+  if (e.request.mode === 'navigate' || (e.request.headers.get('accept') && e.request.headers.get('accept').includes('text/html'))) {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          if (response && (response.status === 200 || response.type === 'opaque')) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(e.request).then(cached => cached || caches.match('./index.html'));
+        })
+    );
+    return;
+  }
+
+  // Use Stale-While-Revalidate for static assets
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => {
-      // Only fallback to index.html for navigation requests or HTML pages
-      if (e.request.mode === 'navigate' || e.request.headers.get('accept').includes('text/html')) {
-        return caches.match('./index.html');
+    caches.match(e.request).then(cached => {
+      if (cached) {
+        // Fetch fresh in background to update cache
+        fetch(e.request)
+          .then(response => {
+            if (response && (response.status === 200 || response.type === 'opaque')) {
+              caches.open(CACHE_NAME).then(cache => cache.put(e.request, response));
+            }
+          })
+          .catch(() => {});
+        return cached;
       }
-    }))
+      return fetch(e.request);
+    })
   );
 });
